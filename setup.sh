@@ -1,318 +1,350 @@
-"""
-scripts/generate_report.py
-Cyber&Legal · AI Governance Assessment Report Generator
-========================================================
-Combines results from COMPL-AI, OWASP, NIST, and ENISA assessments
-into a single branded HTML report.
-
-Usage:
-    python scripts/generate_report.py
-    python scripts/generate_report.py --title "Q2 2025 AI Governance Review" --model gpt-4o
-"""
-
-import json
-import argparse
-import datetime
-from pathlib import Path
-
-REPORT_DIR = Path("reports/output")
-
-
-def load_json(path: str) -> dict:
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def score_to_color(score: float) -> str:
-    if score is None:
-        return "#888"
-    if score >= 0.75:
-        return "#10B981"
-    if score >= 0.50:
-        return "#F59E0B"
-    return "#EF4444"
-
-
-def score_to_label(score: float) -> str:
-    if score is None:
-        return "N/A"
-    if score >= 0.75:
-        return "COMPLIANT"
-    if score >= 0.50:
-        return "PARTIAL"
-    return "NON-COMPLIANT"
-
-
-def generate_html_report(
-    complai_data: dict,
-    owasp_data: dict,
-    nist_data: dict,
-    enisa_data: dict,
-    title: str,
-    model: str,
-    output_path: str,
-):
-    now = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
-
-    # Extract key metrics
-    eu_score = complai_data.get("eu_ai_act_assessment", {}).get("composite_eu_ai_act_score")
-    eu_tier = complai_data.get("eu_ai_act_assessment", {}).get("compliance_tier", "N/A")
-    eu_principles = complai_data.get("eu_ai_act_assessment", {}).get("principles", {})
-
-    owasp_score = owasp_data.get("overall_score")
-    owasp_status = owasp_data.get("owasp_status", "N/A")
-    owasp_categories = owasp_data.get("categories", {})
-    owasp_critical = owasp_data.get("critical_failures", [])
-
-    nist_score = nist_data.get("scores", {}).get("overall_nist_score")
-    nist_maturity = nist_data.get("scores", {}).get("overall_maturity", "N/A")
-    nist_functions = nist_data.get("scores", {}).get("functions", {})
-
-    enisa_risk = enisa_data.get("overall_residual_risk")
-    enisa_rating = enisa_data.get("risk_rating", "N/A")
-    enisa_critical = enisa_data.get("critical_threats", [])
-    enisa_threats = enisa_data.get("threats", {})
-
-    # Compute composite overall score
-    scores = [s for s in [eu_score, owasp_score, nist_score] if s is not None]
-    if enisa_risk is not None:
-        scores.append(1 - enisa_risk)
-    composite = sum(scores) / len(scores) if scores else None
-
-    def fmt(v):
-        return f"{v:.0%}" if v is not None else "N/A"
-
-    def principle_rows(principles):
-        rows = ""
-        for name, data in principles.items():
-            s = data.get("score")
-            color = score_to_color(s)
-            rows += f"""
-            <tr>
-                <td>{name}</td>
-                <td style="color:#8B9DBB;font-size:12px">{data.get('article','')}</td>
-                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
-                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
-                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:11px">{score_to_label(s)}</span></td>
-            </tr>"""
-        return rows
-
-    def owasp_rows(categories):
-        rows = ""
-        for oid, data in categories.items():
-            s = data.get("pass_rate")
-            color = score_to_color(s)
-            sev = data.get("severity", "")
-            sev_color = {"CRITICAL": "#EF4444", "HIGH": "#F59E0B", "MEDIUM": "#3B82F6"}.get(sev, "#888")
-            rows += f"""
-            <tr>
-                <td style="font-family:monospace;font-size:12px">{oid}</td>
-                <td>{data.get('title','')[:40]}</td>
-                <td><span style="background:{sev_color}22;color:{sev_color};padding:2px 8px;border-radius:99px;font-size:10px">{sev}</span></td>
-                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
-                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
-            </tr>"""
-        return rows
-
-    def enisa_rows(threats):
-        rows = ""
-        for tid, data in threats.items():
-            level = data.get("risk_level", "")
-            color = {"LOW": "#10B981", "MEDIUM": "#F59E0B", "HIGH": "#F97316", "CRITICAL": "#EF4444"}.get(level, "#888")
-            rows += f"""
-            <tr>
-                <td style="font-family:monospace;font-size:12px">{tid}</td>
-                <td>{data.get('title','')[:45]}</td>
-                <td style="color:#8B9DBB;font-size:11px">{data.get('category','')}</td>
-                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:10px">{level}</span></td>
-                <td style="text-align:right;color:{color};font-weight:500">{fmt(data.get('mitigation_score'))}</td>
-            </tr>"""
-        return rows
-
-    def nist_function_rows(functions):
-        rows = ""
-        for fname, data in functions.items():
-            s = data.get("score")
-            color = score_to_color(s)
-            mat = data.get("maturity_level", "")
-            rows += f"""
-            <tr>
-                <td style="font-weight:500">{fname}</td>
-                <td style="color:#8B9DBB;font-size:12px">{data.get('description','')[:50]}</td>
-                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
-                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
-                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:10px">{mat}</span></td>
-            </tr>"""
-        return rows
-
-    composite_color = score_to_color(composite)
-
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title} — Cyber&Legal AI Governance Report</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0A0F1E; color: #F0F4FF; line-height: 1.6; }}
-  .page {{ max-width: 1100px; margin: 0 auto; padding: 40px 32px; }}
-  .header {{ border-bottom: 0.5px solid rgba(255,255,255,0.08); padding-bottom: 32px; margin-bottom: 40px; }}
-  .logo {{ font-size: 13px; font-weight: 600; color: #3B82F6; letter-spacing: 1px; margin-bottom: 16px; }}
-  h1 {{ font-size: 32px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }}
-  .meta {{ color: #8B9DBB; font-size: 13px; }}
-  .score-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }}
-  .score-card {{ background: #0F1628; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 20px; }}
-  .score-label {{ font-size: 11px; color: #4A5568; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 8px; }}
-  .score-value {{ font-size: 32px; font-weight: 600; letter-spacing: -1px; }}
-  .score-tier {{ font-size: 11px; margin-top: 4px; }}
-  .section {{ margin-bottom: 40px; }}
-  .section-header {{ display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; border-bottom: 0.5px solid rgba(255,255,255,0.06); padding-bottom: 12px; }}
-  .section-title {{ font-size: 16px; font-weight: 600; }}
-  .section-badge {{ font-size: 10px; background: rgba(37,99,235,0.15); color: #3B82F6; padding: 3px 10px; border-radius: 99px; font-weight: 600; letter-spacing: 0.5px; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-  th {{ text-align: left; color: #4A5568; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }}
-  td {{ padding: 10px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.04); vertical-align: middle; }}
-  tr:hover td {{ background: rgba(255,255,255,0.02); }}
-  .alert {{ background: rgba(239,68,68,0.08); border: 0.5px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #FCA5A5; }}
-  .footer {{ border-top: 0.5px solid rgba(255,255,255,0.06); padding-top: 24px; margin-top: 40px; color: #4A5568; font-size: 12px; display: flex; justify-content: space-between; }}
-  @media print {{ body {{ background: white; color: black; }} .score-card {{ background: #f8f8f8; border: 1px solid #ddd; }} }}
-</style>
-</head>
-<body>
-<div class="page">
-
-  <!-- Header -->
-  <div class="header">
-    <div class="logo">CYBER&LEGAL · AI GOVERNANCE ASSESSMENT</div>
-    <h1>{title}</h1>
-    <div class="meta">
-      Model evaluated: <strong style="color:#F0F4FF">{model or 'Not specified'}</strong> &nbsp;·&nbsp;
-      Generated: {now} &nbsp;·&nbsp;
-      Engine: COMPL-AI v2 (ETH Zurich × LatticeFlow AI × INSAIT)
-    </div>
-  </div>
-
-  <!-- Score Cards -->
-  <div class="score-grid">
-    <div class="score-card">
-      <div class="score-label">COMPOSITE SCORE</div>
-      <div class="score-value" style="color:{composite_color}">{fmt(composite)}</div>
-      <div class="score-tier" style="color:{composite_color}">Overall Governance Posture</div>
-    </div>
-    <div class="score-card">
-      <div class="score-label">EU AI ACT</div>
-      <div class="score-value" style="color:{score_to_color(eu_score)}">{fmt(eu_score)}</div>
-      <div class="score-tier" style="color:{score_to_color(eu_score)}">{eu_tier}</div>
-    </div>
-    <div class="score-card">
-      <div class="score-label">OWASP LLM TOP 10</div>
-      <div class="score-value" style="color:{score_to_color(owasp_score)}">{fmt(owasp_score)}</div>
-      <div class="score-tier" style="color:{score_to_color(owasp_score)}">{owasp_status}</div>
-    </div>
-    <div class="score-card">
-      <div class="score-label">NIST AI RMF</div>
-      <div class="score-value" style="color:{score_to_color(nist_score)}">{fmt(nist_score)}</div>
-      <div class="score-tier" style="color:{score_to_color(nist_score)}">{nist_maturity}</div>
-    </div>
-  </div>
-
-  <!-- Alerts -->
-  {''.join([f'<div class="alert">⚠️ OWASP CRITICAL FAILURE: {c} — Immediate remediation required.</div>' for c in owasp_critical])}
-  {''.join([f'<div class="alert">🚨 ENISA CRITICAL THREAT: {t} — Critical residual risk detected.</div>' for t in enisa_critical])}
-
-  <!-- EU AI Act -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-title">EU AI Act Compliance — 6 Core Principles</span>
-      <span class="section-badge">COMPL-AI · ETH ZURICH × LATTICEFLOW AI</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>Principle</th><th>Article</th><th style="width:200px">Score</th><th>%</th><th>Status</th>
-      </tr></thead>
-      <tbody>{principle_rows(eu_principles)}</tbody>
-    </table>
-  </div>
-
-  <!-- OWASP -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-title">OWASP LLM Top 10 — 2025 Edition</span>
-      <span class="section-badge">OWASP FOUNDATION · CC BY-SA 4.0</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>ID</th><th>Vulnerability</th><th>Severity</th><th style="width:150px">Pass Rate</th><th>Score</th>
-      </tr></thead>
-      <tbody>{owasp_rows(owasp_categories)}</tbody>
-    </table>
-  </div>
-
-  <!-- NIST AI RMF -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-title">NIST AI RMF — 4 Core Functions</span>
-      <span class="section-badge">NIST AI 100-1 (2023) · PUBLIC DOMAIN</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>Function</th><th>Description</th><th style="width:150px">Score</th><th>%</th><th>Maturity</th>
-      </tr></thead>
-      <tbody>{nist_function_rows(nist_functions)}</tbody>
-    </table>
-  </div>
-
-  <!-- ENISA -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-title">ENISA AI Threat Landscape — 11 Threat Categories</span>
-      <span class="section-badge">ENISA 2024 · CC BY 4.0</span>
-    </div>
-    <table>
-      <thead><tr>
-        <th>ID</th><th>Threat</th><th>Category</th><th>Risk Level</th><th>Mitigation</th>
-      </tr></thead>
-      <tbody>{enisa_rows(enisa_threats)}</tbody>
-    </table>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <span>Cyber&Legal AI Governance Lab · <a href="https://cyberandlegal.com" style="color:#3B82F6">cyberandlegal.com</a></span>
-    <span>COMPL-AI Apache 2.0 · NIST Public Domain · OWASP CC BY-SA 4.0 · ENISA CC BY 4.0</span>
-  </div>
-
-</div>
-</body>
-</html>"""
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html)
-
-    print(f"\n✅ HTML Report generated: {output_path}")
-    return output_path
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Cyber&Legal · Report Generator")
-    parser.add_argument("--title", default="AI Governance Assessment Report")
-    parser.add_argument("--model", default="")
-    parser.add_argument("--output", default="reports/output/assessment_report.html")
-    args = parser.parse_args()
-
-    complai = load_json(REPORT_DIR / "assessment_summary.json")
-    owasp = load_json(REPORT_DIR / "owasp_assessment.json")
-    nist = load_json(REPORT_DIR / "nist_assessment.json")
-    enisa = load_json(REPORT_DIR / "enisa_assessment.json")
-
-    generate_html_report(complai, owasp, nist, enisa, args.title, args.model, args.output)
-    print(f"\n  Open with: open {args.output}\n")
-
-
-if __name__ == "__main__":
-    main()
+{
+  "_meta": {
+    "title": "NIST AI Risk Management Framework (AI RMF 1.0)",
+    "source": "NIST AI 100-1 (January 2023) + GenAI Profile AI 600-1 (July 2024)",
+    "url": "https://www.nist.gov/artificial-intelligence/ai-rmf",
+    "license": "Public Domain — U.S. Government Work",
+    "version": "1.0",
+    "last_updated": "2024-07-26",
+    "description": "Voluntary framework for managing risks to individuals, organizations, and society associated with AI. Four core functions: GOVERN, MAP, MEASURE, MANAGE."
+  },
+  "functions": {
+    "GOVERN": {
+      "description": "Cultivate and implement organizational AI risk governance — policies, processes, accountability structures, and culture.",
+      "purpose": "Cross-cutting function that enables all other RMF functions.",
+      "eu_ai_act_alignment": ["Art. 9", "Art. 71"],
+      "iso42001_alignment": ["Clause 4", "Clause 5", "Clause 6"],
+      "categories": {
+        "GOVERN-1": {
+          "title": "Policies, Processes, Procedures and Practices",
+          "controls": [
+            {
+              "id": "GOVERN-1.1",
+              "statement": "Policies, processes, procedures, and practices across the organization related to the mapping, measuring, and managing of AI risks are in place, transparent, and implemented effectively.",
+              "owasp_llm": [],
+              "enisa_threats": ["T-09"]
+            },
+            {
+              "id": "GOVERN-1.2",
+              "statement": "The characteristics of trustworthy AI are integrated into organizational policies, processes, procedures, and practices.",
+              "owasp_llm": [],
+              "enisa_threats": ["T-09"]
+            },
+            {
+              "id": "GOVERN-1.3",
+              "statement": "Organizational leaders are responsible and accountable for decisions about risks associated with AI system development and deployment.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "GOVERN-1.4",
+              "statement": "Organizational teams are committed to a culture that considers and communicates AI risk.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "GOVERN-1.5",
+              "statement": "Organizational teams document the risks and potential impacts of the AI technology they design, develop, deploy, evaluate, and use.",
+              "owasp_llm": ["LLM09"],
+              "enisa_threats": ["T-09"]
+            },
+            {
+              "id": "GOVERN-1.6",
+              "statement": "Organizational teams are committed to AI risk management through ongoing training, awareness, and documentation.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "GOVERN-1.7",
+              "statement": "Processes and procedures are in place for the decommissioning of AI systems identified as too high risk.",
+              "owasp_llm": ["LLM06"],
+              "enisa_threats": ["T-11"]
+            }
+          ]
+        },
+        "GOVERN-2": {
+          "title": "Accountability",
+          "controls": [
+            {
+              "id": "GOVERN-2.1",
+              "statement": "Roles and responsibilities and organizational accountability structures are in place so that the appropriate teams and individuals are empowered, responsible, and trained for mapping, measuring, and managing AI risks.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "GOVERN-2.2",
+              "statement": "The organization's personnel and partners are provided with AI risk management training to enable them to perform their duties and responsibilities consistent with related policies, procedures, norms, and organizational risk tolerance.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "GOVERN-4": {
+          "title": "Organizational Teams",
+          "controls": [
+            {
+              "id": "GOVERN-4.1",
+              "statement": "Organizational teams document the risks and potential impacts of the AI technology they design, develop, deploy, evaluate, and use, and communicate these to relevant AI actors.",
+              "owasp_llm": [],
+              "enisa_threats": ["T-06", "T-09"]
+            },
+            {
+              "id": "GOVERN-4.2",
+              "statement": "Organizational teams establish practices to enable AI risk awareness and communication.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "GOVERN-5": {
+          "title": "Organizational Context",
+          "controls": [
+            {
+              "id": "GOVERN-5.1",
+              "statement": "Organizational policies and practices are in place to address AI risks, including privacy, intellectual property, and third-party risks.",
+              "owasp_llm": ["LLM03"],
+              "enisa_threats": ["T-07"]
+            },
+            {
+              "id": "GOVERN-5.2",
+              "statement": "Practices and personnel for supporting AI risk management are in place.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "GOVERN-6": {
+          "title": "Policies and Procedures",
+          "controls": [
+            {
+              "id": "GOVERN-6.1",
+              "statement": "Policies and procedures are in place to address AI risks of third-party entities, including procurement, assessments, and oversight.",
+              "owasp_llm": ["LLM03"],
+              "enisa_threats": ["T-07"]
+            },
+            {
+              "id": "GOVERN-6.2",
+              "statement": "Contingency processes are in place to handle failures or incidents in third-party data or AI systems.",
+              "owasp_llm": ["LLM07"],
+              "enisa_threats": ["T-07", "T-10"]
+            }
+          ]
+        }
+      }
+    },
+    "MAP": {
+      "description": "Identify context, stakeholders, and potential AI risks before system development or deployment.",
+      "purpose": "Understand AI system context and risk posture.",
+      "eu_ai_act_alignment": ["Art. 9", "Art. 10"],
+      "iso42001_alignment": ["Clause 6.1", "Clause 8.4"],
+      "categories": {
+        "MAP-1": {
+          "title": "Context",
+          "controls": [
+            {
+              "id": "MAP-1.1",
+              "statement": "Context is established for evaluating AI risk including AI system categorization and organizational policies.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MAP-1.5",
+              "statement": "Organizational risk tolerance is determined and documented.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MAP-1.6",
+              "statement": "AI system risks are given appropriate priority relative to other organizational risks.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "MAP-2": {
+          "title": "Scientific Understanding",
+          "controls": [
+            {
+              "id": "MAP-2.1",
+              "statement": "Scientific findings and expert knowledge of AI risk inform organizational risk tolerance and AI risk management.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MAP-2.2",
+              "statement": "Scientific findings and expert knowledge are applied to evaluate AI risks.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "MAP-3": {
+          "title": "Data and Information",
+          "controls": [
+            {
+              "id": "MAP-3.5",
+              "statement": "Practices and personnel for supporting AI data quality are in place, including data quality and data governance.",
+              "owasp_llm": ["LLM02", "LLM06"],
+              "enisa_threats": ["T-02", "T-04", "T-07"]
+            }
+          ]
+        },
+        "MAP-5": {
+          "title": "Impacts",
+          "controls": [
+            {
+              "id": "MAP-5.1",
+              "statement": "Likelihood of the AI system's potential impacts and the associated risks are estimated.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MAP-5.2",
+              "statement": "Practices for AI system impact assessment are in place.",
+              "owasp_llm": ["LLM06"],
+              "enisa_threats": ["T-06", "T-08", "T-11"]
+            }
+          ]
+        }
+      }
+    },
+    "MEASURE": {
+      "description": "Quantitatively and qualitatively assess AI risks using metrics, benchmarks, and testing.",
+      "purpose": "Evaluate AI system trustworthiness characteristics.",
+      "eu_ai_act_alignment": ["Art. 9", "Art. 15"],
+      "iso42001_alignment": ["Clause 8", "Clause 9"],
+      "categories": {
+        "MEASURE-1": {
+          "title": "AI Risk Measurement Approaches",
+          "controls": [
+            {
+              "id": "MEASURE-1.1",
+              "statement": "Approaches and metrics are identified and tested for measuring AI risk.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MEASURE-1.3",
+              "statement": "Internal experts and teams with domain-specific knowledge are engaged to test and evaluate AI systems.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "MEASURE-2": {
+          "title": "AI System Testing and Evaluation",
+          "controls": [
+            {
+              "id": "MEASURE-2.2",
+              "statement": "AI system performance or behavior is evaluated for bias, fairness, and equity.",
+              "owasp_llm": ["LLM09"],
+              "enisa_threats": ["T-06"]
+            },
+            {
+              "id": "MEASURE-2.3",
+              "statement": "AI system performance is evaluated for robustness and adversarial inputs.",
+              "owasp_llm": ["LLM01", "LLM04", "LLM05"],
+              "enisa_threats": ["T-01", "T-05"]
+            },
+            {
+              "id": "MEASURE-2.5",
+              "statement": "The AI system's performance is monitored for anomalies and degradation.",
+              "owasp_llm": ["LLM01", "LLM10"],
+              "enisa_threats": ["T-01", "T-10"]
+            },
+            {
+              "id": "MEASURE-2.6",
+              "statement": "The AI system is regularly tested for security vulnerabilities including data leakage.",
+              "owasp_llm": ["LLM02", "LLM07"],
+              "enisa_threats": ["T-03", "T-04"]
+            },
+            {
+              "id": "MEASURE-2.7",
+              "statement": "AI system is monitored for concept drift and performance degradation.",
+              "owasp_llm": [],
+              "enisa_threats": ["T-02"]
+            }
+          ]
+        }
+      }
+    },
+    "MANAGE": {
+      "description": "Prioritize, respond to, and recover from AI risks.",
+      "purpose": "Implement risk treatment and response plans.",
+      "eu_ai_act_alignment": ["Art. 9", "Art. 62"],
+      "iso42001_alignment": ["Clause 8", "Clause 10"],
+      "categories": {
+        "MANAGE-1": {
+          "title": "Risk Treatment",
+          "controls": [
+            {
+              "id": "MANAGE-1.1",
+              "statement": "A risk treatment plan, including benefits and costs, is developed and communicated.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            },
+            {
+              "id": "MANAGE-1.3",
+              "statement": "AI risks based on assessments are prioritized.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        },
+        "MANAGE-2": {
+          "title": "Incident Response",
+          "controls": [
+            {
+              "id": "MANAGE-2.2",
+              "statement": "Mechanisms are in place and activated in the event of an incident or failure.",
+              "owasp_llm": ["LLM07"],
+              "enisa_threats": ["T-10"]
+            },
+            {
+              "id": "MANAGE-2.4",
+              "statement": "Risks from third-party entities are managed and assessed.",
+              "owasp_llm": ["LLM03"],
+              "enisa_threats": ["T-07"]
+            }
+          ]
+        },
+        "MANAGE-4": {
+          "title": "Post-Deployment",
+          "controls": [
+            {
+              "id": "MANAGE-4.1",
+              "statement": "Post-deployment risks are identified and managed.",
+              "owasp_llm": ["LLM10"],
+              "enisa_threats": ["T-01", "T-10"]
+            },
+            {
+              "id": "MANAGE-4.2",
+              "statement": "Residual risks are identified and documented.",
+              "owasp_llm": [],
+              "enisa_threats": []
+            }
+          ]
+        }
+      }
+    }
+  },
+  "genai_profile": {
+    "title": "Generative AI Profile (AI 600-1)",
+    "source": "NIST AI 600-1 (July 2024)",
+    "url": "https://doi.org/10.6028/NIST.AI.600-1",
+    "risk_categories": [
+      {"id": "GAI-1", "name": "Confabulation", "owasp_llm": "LLM09", "enisa": "T-08"},
+      {"id": "GAI-2", "name": "Data Privacy", "owasp_llm": "LLM02", "enisa": "T-04"},
+      {"id": "GAI-3", "name": "Environmental Impact", "owasp_llm": null, "enisa": null},
+      {"id": "GAI-4", "name": "Information Integrity", "owasp_llm": "LLM09", "enisa": "T-08"},
+      {"id": "GAI-5", "name": "Intellectual Property", "owasp_llm": "LLM10", "enisa": null},
+      {"id": "GAI-6", "name": "Toxic Content", "owasp_llm": "LLM01", "enisa": "T-05"},
+      {"id": "GAI-7", "name": "Harmful Bias and Homogenization", "owasp_llm": "LLM09", "enisa": "T-06"},
+      {"id": "GAI-8", "name": "Human-AI Configuration", "owasp_llm": "LLM06", "enisa": "T-11"},
+      {"id": "GAI-9", "name": "Data Privacy in Training", "owasp_llm": "LLM02", "enisa": "T-02"},
+      {"id": "GAI-10", "name": "Obscene, Degrading, and Abusive Content", "owasp_llm": "LLM01", "enisa": "T-05"},
+      {"id": "GAI-11", "name": "Value Chain and Component Integration", "owasp_llm": "LLM03", "enisa": "T-07"},
+      {"id": "GAI-12", "name": "Dangerous, Violent, or Hateful Content", "owasp_llm": "LLM01", "enisa": "T-05"}
+    ]
+  }
+}

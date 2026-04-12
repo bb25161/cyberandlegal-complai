@@ -1,308 +1,464 @@
-{
-  "_meta": {
-    "title": "ENISA Artificial Intelligence Threat Landscape",
-    "source": "European Union Agency for Cybersecurity (ENISA)",
-    "url": "https://www.enisa.europa.eu/topics/artificial-intelligence",
-    "license": "CC BY 4.0 — Creative Commons Attribution 4.0 International",
-    "attribution": "© European Union Agency for Cybersecurity (ENISA), 2024",
-    "version": "2024",
-    "description": "ENISA's structured taxonomy of AI-specific threats, covering integrity, confidentiality, availability, fairness, transparency, and societal risks."
-  },
-  "threats": [
-    {
-      "id": "T-01",
-      "title": "AI Model Evasion (Adversarial Attacks)",
-      "category": "Integrity",
-      "impact": "CRITICAL",
-      "likelihood": "HIGH",
-      "description": "Adversaries craft inputs specifically designed to fool AI models into making incorrect predictions or classifications, often imperceptible to humans.",
-      "sub_types": [
-        "White-box attacks (FGSM, PGD, C&W) — require model access",
-        "Black-box attacks — only require query access",
-        "Transfer attacks — adversarial examples from one model applied to another",
-        "Physical-world attacks — adversarial patches, stickers, glasses",
-        "Semantic attacks — meaning-preserving text manipulations"
-      ],
-      "affected_ai_types": ["Image classifiers", "NLP models", "LLMs", "Autonomous systems"],
-      "mitigations": [
-        "Adversarial training with FGSM/PGD examples",
-        "Input preprocessing (feature squeezing, spatial smoothing)",
-        "Ensemble methods and model diversity",
-        "Certified defenses (randomized smoothing)",
-        "Input anomaly detection"
-      ],
-      "owasp_llm": ["LLM01", "LLM05"],
-      "nist_rmf": ["MEASURE-2.3", "MEASURE-2.5"],
-      "eu_ai_act": ["Art. 15"],
-      "iso42001": ["Clause 8.4", "Annex A.6"]
+"""
+assessments/enisa_threat_evaluator.py
+Cyber&Legal · ENISA AI Threat Landscape Assessment
+====================================================
+Maps your AI system against ENISA's AI Threat Landscape (2023-2024).
+Source: ENISA "Artificial Intelligence Cybersecurity Challenges" + 
+        "AI Threat Landscape Report 2024"
+        https://www.enisa.europa.eu/topics/artificial-intelligence
+
+Usage:
+    python assessments/enisa_threat_evaluator.py --interactive
+    python assessments/enisa_threat_evaluator.py --output reports/output/enisa_assessment.json
+"""
+
+import json
+import argparse
+import datetime
+from pathlib import Path
+
+# ─── ENISA AI Threat Categories (2024) ───────────────────────────────────────
+# Source: ENISA Artificial Intelligence Threat Landscape
+# License: CC BY 4.0 — https://www.enisa.europa.eu
+
+ENISA_THREATS = {
+    "T-01": {
+        "title": "AI Model Evasion (Adversarial Attacks)",
+        "category": "Integrity",
+        "description": (
+            "Adversaries craft inputs designed to fool AI models into making incorrect predictions. "
+            "Includes image perturbations, text adversarial examples, and prompt-based evasion."
+        ),
+        "impact": "CRITICAL",
+        "likelihood": "HIGH",
+        "owasp_mapping": "LLM01, LLM05",
+        "nist_rmf": "MEASURE 2.3, MEASURE 2.5",
+        "eu_ai_act": "Art. 15 (Accuracy, Robustness, Cybersecurity)",
+        "mitigations": [
+            "Adversarial training and input preprocessing",
+            "Ensemble methods and model diversity",
+            "Input validation and anomaly detection",
+            "Regular red-team exercises",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you perform adversarial robustness testing (e.g., FGSM, PGD, AutoAttack) on your models?",
+                "options": ["Yes, automated", "Manually", "No"],
+                "weights": [1.0, 0.5, 0.0],
+            },
+            {
+                "q": "Do you have input validation and anomaly detection in production?",
+                "options": ["Yes, real-time detection", "Manual monitoring", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-02",
-      "title": "AI Poisoning (Training Data Manipulation)",
-      "category": "Integrity",
-      "impact": "CRITICAL",
-      "likelihood": "MEDIUM",
-      "description": "Attackers contaminate training datasets to corrupt model behavior, embed persistent backdoors, or cause targeted misclassification.",
-      "sub_types": [
-        "Label flipping — changing ground truth labels for selected samples",
-        "Feature poisoning — modifying input features without label changes",
-        "Backdoor injection — embedding trigger patterns that activate at test time",
-        "Gradient-based poisoning — crafting samples to maximally degrade model",
-        "Model poisoning in federated learning — malicious gradient updates"
-      ],
-      "affected_ai_types": ["All ML models", "LLMs", "Federated learning systems"],
-      "mitigations": [
-        "Data provenance and supply chain tracking",
-        "Statistical outlier detection in training sets",
-        "Differential privacy (DP-SGD)",
-        "Robust aggregation (Krum, Trimmed Mean) for FL",
-        "Independent data verification before training"
-      ],
-      "owasp_llm": ["LLM04"],
-      "nist_rmf": ["MAP-3.5", "MEASURE-2.7"],
-      "eu_ai_act": ["Art. 10"],
-      "iso42001": ["Clause 8.3", "Annex A.5"]
+    "T-02": {
+        "title": "AI Poisoning (Training Data Manipulation)",
+        "category": "Integrity",
+        "description": (
+            "Attackers manipulate training data to corrupt model behavior, "
+            "embed backdoors, or degrade model performance on target inputs."
+        ),
+        "impact": "CRITICAL",
+        "likelihood": "MEDIUM",
+        "owasp_mapping": "LLM04",
+        "nist_rmf": "MAP 3.5, MEASURE 2.7",
+        "eu_ai_act": "Art. 10 (Data Governance and Quality)",
+        "mitigations": [
+            "Data provenance and supply chain verification",
+            "Statistical anomaly detection in training data",
+            "Differential privacy in training",
+            "Robust aggregation methods (for federated learning)",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you verify training data provenance and detect anomalies before training?",
+                "options": ["Yes, formal data auditing", "Basic checks", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Do you use differential privacy or other poison-resistant training techniques?",
+                "options": ["Yes", "Exploring", "No"],
+                "weights": [1.0, 0.3, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-03",
-      "title": "AI Model Theft and Extraction",
-      "category": "Confidentiality",
-      "impact": "HIGH",
-      "likelihood": "HIGH",
-      "description": "Adversaries reconstruct proprietary model functionality through repeated API queries, enabling clone models or exposing intellectual property and training data.",
-      "sub_types": [
-        "Model extraction — functionally equivalent model via black-box queries",
-        "Hyperparameter stealing — inferring model architecture/training details",
-        "Dataset reconstruction — recovering training data from model parameters",
-        "Gradient leakage in federated settings"
-      ],
-      "affected_ai_types": ["API-exposed models", "SaaS AI systems", "Embedded AI"],
-      "mitigations": [
-        "API rate limiting and query monitoring",
-        "Query watermarking for model fingerprinting",
-        "Output perturbation to hinder reconstruction",
-        "Anomaly detection on unusual query patterns",
-        "Authentication and access controls"
-      ],
-      "owasp_llm": ["LLM03"],
-      "nist_rmf": ["GOVERN-6.1", "MEASURE-2.6"],
-      "eu_ai_act": ["Art. 15"],
-      "iso42001": ["Clause 8.4", "Annex A.9"]
+    "T-03": {
+        "title": "AI Model Theft and Extraction",
+        "category": "Confidentiality",
+        "description": (
+            "Adversaries steal proprietary model functionality through repeated API queries, "
+            "enabling knockoff models or exposing intellectual property."
+        ),
+        "impact": "HIGH",
+        "likelihood": "HIGH",
+        "owasp_mapping": "LLM03",
+        "nist_rmf": "GOVERN 6.1, MEASURE 2.6",
+        "eu_ai_act": "Art. 15 (Cybersecurity)",
+        "mitigations": [
+            "API rate limiting and anomaly detection",
+            "Query watermarking",
+            "Output perturbation to prevent reconstruction",
+            "Access controls and authentication",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you implement API rate limiting and monitoring for model extraction patterns?",
+                "options": ["Yes, automated detection", "Basic rate limiting", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-04",
-      "title": "AI Inference Attacks (Privacy Violations)",
-      "category": "Confidentiality",
-      "impact": "HIGH",
-      "likelihood": "MEDIUM",
-      "description": "Adversaries use model outputs to infer sensitive information about training individuals through membership inference, attribute inference, or data reconstruction.",
-      "sub_types": [
-        "Membership inference — determine if a sample was in training data",
-        "Attribute inference — infer sensitive attributes of training individuals",
-        "Property inference — infer dataset-level properties (e.g., demographic ratios)",
-        "Data reconstruction — recover actual training samples from model parameters"
-      ],
-      "affected_ai_types": ["ML models trained on PII", "LLMs", "Medical AI", "Financial AI"],
-      "mitigations": [
-        "Differential privacy in training (DP-SGD)",
-        "Output confidence score rounding",
-        "Prediction API rate limiting",
-        "Membership inference testing before deployment",
-        "Data minimization in training sets"
-      ],
-      "owasp_llm": ["LLM02", "LLM06"],
-      "nist_rmf": ["MAP-3.5", "MEASURE-2.6"],
-      "eu_ai_act": ["Art. 10", "GDPR Art. 22"],
-      "iso42001": ["Clause 8.3"]
+    "T-04": {
+        "title": "AI Inference Attacks (Privacy Violations)",
+        "category": "Confidentiality",
+        "description": (
+            "Adversaries use model outputs to infer sensitive information about "
+            "training data individuals (membership inference, attribute inference, data reconstruction)."
+        ),
+        "impact": "HIGH",
+        "likelihood": "MEDIUM",
+        "owasp_mapping": "LLM02, LLM06",
+        "nist_rmf": "MAP 3.5, MEASURE 2.6",
+        "eu_ai_act": "Art. 10 (Privacy), GDPR Art. 22",
+        "mitigations": [
+            "Differential privacy in training",
+            "Output sanitization and confidence score rounding",
+            "Membership inference testing before deployment",
+            "Data minimization in training",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Have you tested your model for membership inference and attribute inference vulnerabilities?",
+                "options": ["Yes, formal testing", "Some testing", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Do you apply differential privacy or output sanitization to protect training data?",
+                "options": ["Yes", "Partially", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-05",
-      "title": "Prompt Injection and Jailbreaking",
-      "category": "Integrity",
-      "impact": "CRITICAL",
-      "likelihood": "VERY HIGH",
-      "description": "Malicious inputs manipulate LLM behavior to bypass safety guardrails, override system instructions, or cause production of harmful outputs.",
-      "sub_types": [
-        "Direct prompt injection — user directly overrides system prompt",
-        "Indirect prompt injection — malicious content in retrieved documents",
-        "Jailbreaking — role-play and persona-based safety bypass",
-        "Many-shot jailbreaking — context window flooding with examples",
-        "Multi-modal injection — instructions embedded in images/audio"
-      ],
-      "affected_ai_types": ["LLMs", "AI chatbots", "Agentic AI systems", "RAG systems"],
-      "mitigations": [
-        "Instruction hierarchy enforcement (system > user)",
-        "Input sanitization and filtering pipeline",
-        "Output content classifiers",
-        "Regular jailbreak testing (HarmBench, WildGuard)",
-        "Sandboxed agent execution environments"
-      ],
-      "owasp_llm": ["LLM01", "LLM07"],
-      "nist_rmf": ["MEASURE-2.3", "MANAGE-2.2"],
-      "eu_ai_act": ["Art. 15"],
-      "iso42001": ["Clause 8.4", "Annex A.6"]
+    "T-05": {
+        "title": "Prompt Injection and Jailbreaking",
+        "category": "Integrity",
+        "description": (
+            "Malicious inputs manipulate LLM behavior to bypass safety measures, "
+            "override system prompts, or cause the model to produce harmful outputs."
+        ),
+        "impact": "CRITICAL",
+        "likelihood": "VERY HIGH",
+        "owasp_mapping": "LLM01, LLM07",
+        "nist_rmf": "MEASURE 2.3, MANAGE 2.2",
+        "eu_ai_act": "Art. 15 (Robustness and Cybersecurity)",
+        "mitigations": [
+            "Input validation and sanitization pipeline",
+            "Instruction hierarchy enforcement",
+            "Output filtering and content classifiers",
+            "Regular jailbreak testing using HarmBench, WildGuard",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you regularly test for prompt injection and jailbreak vulnerabilities?",
+                "options": ["Yes, automated red-teaming", "Manual testing", "No testing"],
+                "weights": [1.0, 0.5, 0.0],
+            },
+            {
+                "q": "Do you have output filtering to block harmful content in production?",
+                "options": ["Yes, real-time filtering", "Post-hoc review", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-06",
-      "title": "AI Bias and Discrimination",
-      "category": "Fairness",
-      "impact": "HIGH",
-      "likelihood": "HIGH",
-      "description": "AI systems systematically disadvantage protected groups due to biased training data, flawed model design, or discriminatory feedback loops.",
-      "sub_types": [
-        "Historical bias — reflecting past discrimination in training data",
-        "Representation bias — underrepresentation of groups in training data",
-        "Measurement bias — inaccurate data collection for certain groups",
-        "Aggregation bias — one model for heterogeneous populations",
-        "Deployment bias — misuse in contexts different from design"
-      ],
-      "affected_ai_types": ["Hiring AI", "Credit scoring", "Healthcare AI", "LLMs", "Facial recognition"],
-      "mitigations": [
-        "Bias audits using BBQ, WinoBias, CrowS-Pairs",
-        "Disparate impact analysis by demographic group",
-        "Fairness-aware training (adversarial debiasing, reweighting)",
-        "Fundamental Rights Impact Assessment (FRIA)",
-        "Diverse and representative training data"
-      ],
-      "owasp_llm": ["LLM09"],
-      "nist_rmf": ["MEASURE-2.2", "GOVERN-4.1"],
-      "eu_ai_act": ["Art. 10(5)", "EU Charter Art. 21"],
-      "iso42001": ["Clause 8.4.2", "Annex A.8"]
+    "T-06": {
+        "title": "AI Bias and Discrimination",
+        "category": "Fairness",
+        "description": (
+            "AI systems systematically disadvantage protected groups due to biased training data, "
+            "flawed model design, or discriminatory deployment decisions."
+        ),
+        "impact": "HIGH",
+        "likelihood": "HIGH",
+        "owasp_mapping": "LLM09",
+        "nist_rmf": "MEASURE 2.2, GOVERN 4.1",
+        "eu_ai_act": "Art. 10(5) (Bias detection and correction), Charter Art. 21",
+        "mitigations": [
+            "Bias audits using BBQ, WinoBias, CrowS-Pairs",
+            "Disparate impact analysis by demographic group",
+            "Fairness-aware training and post-processing",
+            "Human rights impact assessment",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you regularly audit AI outputs for demographic bias and discriminatory patterns?",
+                "options": ["Yes, automated bias testing", "Manual review", "No auditing"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Have you conducted a Fundamental Rights Impact Assessment (FRIA)?",
+                "options": ["Yes, completed", "In progress", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-07",
-      "title": "Supply Chain Attacks on AI Components",
-      "category": "Integrity",
-      "impact": "CRITICAL",
-      "likelihood": "MEDIUM",
-      "description": "Adversaries compromise third-party AI models, datasets, libraries, or ML frameworks used in AI system development or deployment.",
-      "sub_types": [
-        "Malicious model weights on public repositories",
-        "Poisoned public datasets (Wikipedia, Common Crawl)",
-        "Backdoored ML framework libraries",
-        "Compromised pre-training checkpoints",
-        "Vulnerable model serving infrastructure"
-      ],
-      "affected_ai_types": ["All AI systems using third-party components"],
-      "mitigations": [
-        "AI Bill of Materials (AIBOM) for all third-party components",
-        "Model card and dataset card verification",
-        "Cryptographic signing of model artifacts",
-        "Automated model scanning (Protect AI Guardian)",
-        "Dependency vulnerability tracking (CVE monitoring)"
-      ],
-      "owasp_llm": ["LLM03"],
-      "nist_rmf": ["GOVERN-6.1", "MAP-5.1"],
-      "eu_ai_act": ["Art. 25"],
-      "iso42001": ["Clause 8.4.3", "Annex A.7"]
+    "T-07": {
+        "title": "Supply Chain Attacks on AI Components",
+        "category": "Integrity",
+        "description": (
+            "Adversaries compromise third-party AI models, datasets, libraries, "
+            "or ML frameworks used in AI system development or deployment."
+        ),
+        "impact": "CRITICAL",
+        "likelihood": "MEDIUM",
+        "owasp_mapping": "LLM03",
+        "nist_rmf": "GOVERN 6.1, MAP 5.1",
+        "eu_ai_act": "Art. 25 (Responsibilities of importers and distributors)",
+        "mitigations": [
+            "Software Bill of Materials (SBOM/AIBOM) for AI components",
+            "Model card and dataset card verification",
+            "Cryptographic signing of model artifacts",
+            "Dependency vulnerability scanning",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you maintain an AI Bill of Materials (AIBOM) for all third-party AI components?",
+                "options": ["Yes, full AIBOM", "Partial tracking", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Do you verify the integrity and safety of third-party models before deployment?",
+                "options": ["Yes, formal vetting", "Basic checks", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-08",
-      "title": "Disinformation and Deepfake Generation",
-      "category": "Societal",
-      "impact": "HIGH",
-      "likelihood": "VERY HIGH",
-      "description": "AI systems are weaponized to generate synthetic but convincing disinformation, deepfake media, or coordinated inauthentic content at scale.",
-      "sub_types": [
-        "Text-based disinformation — fake news, fabricated quotes",
-        "Image deepfakes — synthetic faces, manipulated photos",
-        "Video deepfakes — face-swapped videos of public figures",
-        "Audio deepfakes — voice cloning for fraud",
-        "Coordinated inauthentic behavior — AI-driven bot networks"
-      ],
-      "affected_ai_types": ["Generative AI", "LLMs", "Image generation", "Voice synthesis"],
-      "mitigations": [
-        "C2PA content provenance and watermarking standard",
-        "AI-generated content labeling (EU AI Act Art. 50)",
-        "Deepfake detection classifiers",
-        "Platform-level synthetic content policies",
-        "Media literacy and public awareness programs"
-      ],
-      "owasp_llm": ["LLM09"],
-      "nist_rmf": ["GOVERN-1.5", "MEASURE-2.3"],
-      "eu_ai_act": ["Art. 50", "Art. 5(f)"],
-      "iso42001": ["Clause 8.2"]
+    "T-08": {
+        "title": "Disinformation and Deepfake Generation",
+        "category": "Societal",
+        "description": (
+            "AI systems are weaponized to generate synthetic but convincing false information, "
+            "deepfake media, or coordinated inauthentic content at scale."
+        ),
+        "impact": "HIGH",
+        "likelihood": "VERY HIGH",
+        "owasp_mapping": "LLM09",
+        "nist_rmf": "GOVERN 1.5, MEASURE 2.3",
+        "eu_ai_act": "Art. 50 (Transparency for synthetic content), Art. 5(f) (deepfakes)",
+        "mitigations": [
+            "C2PA content provenance and watermarking",
+            "Deepfake detection classifiers",
+            "AI output labeling per EU AI Act Art. 50",
+            "Terms of service enforcement against misuse",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you label or watermark AI-generated content (text, images, audio) per EU AI Act Art. 50?",
+                "options": ["Yes, mandatory labeling", "Optional labeling", "No labeling"],
+                "weights": [1.0, 0.3, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-09",
-      "title": "Lack of AI Transparency and Explainability",
-      "category": "Transparency",
-      "impact": "HIGH",
-      "likelihood": "HIGH",
-      "description": "AI systems operate as black boxes, making it impossible for users, regulators, or affected parties to understand, contest, or appeal AI decisions.",
-      "sub_types": [
-        "Algorithmic opacity — unexplainable model decisions",
-        "Audit trail absence — no logging of AI-assisted decisions",
-        "Model card gaps — insufficient documentation",
-        "Training data opacity — undisclosed training sources",
-        "Confidence calibration failures — misleading certainty scores"
-      ],
-      "affected_ai_types": ["High-risk AI systems", "LLMs", "Automated decision systems"],
-      "mitigations": [
-        "SHAP, LIME, or attention-based explainability methods",
-        "Immutable audit logs for all AI-assisted decisions",
-        "Model cards and system cards publication",
-        "Calibrated confidence scores with uncertainty quantification",
-        "User-facing plain-language explanations of AI decisions"
-      ],
-      "owasp_llm": ["LLM09"],
-      "nist_rmf": ["GOVERN-1.5", "MEASURE-1.1"],
-      "eu_ai_act": ["Art. 13", "Art. 14"],
-      "iso42001": ["Clause 8.2", "Annex A.9"]
+    "T-09": {
+        "title": "Lack of AI Transparency and Explainability",
+        "category": "Transparency",
+        "description": (
+            "AI systems operate as black boxes, making it impossible for users, "
+            "regulators, or affected parties to understand decisions or appeal outcomes."
+        ),
+        "impact": "HIGH",
+        "likelihood": "HIGH",
+        "owasp_mapping": "LLM09",
+        "nist_rmf": "GOVERN 1.5, MEASURE 1.1",
+        "eu_ai_act": "Art. 13 (Transparency), Art. 14 (Human Oversight)",
+        "mitigations": [
+            "SHAP, LIME, or attention-based explainability",
+            "Audit logs for all AI decisions",
+            "Model cards and system cards published",
+            "User-facing explanation of AI decisions",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Can you explain AI decisions to affected users in plain language?",
+                "options": ["Yes, automated explanations", "On request", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Do you maintain comprehensive audit logs of all AI-assisted decisions?",
+                "options": ["Yes, immutable audit logs", "Basic logging", "No"],
+                "weights": [1.0, 0.5, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-10",
-      "title": "AI System Availability Attacks (AI-DoS)",
-      "category": "Availability",
-      "impact": "MEDIUM",
-      "likelihood": "MEDIUM",
-      "description": "Adversaries degrade or disable AI systems through sponge attacks, resource exhaustion, or model-targeted denial of service attacks.",
-      "sub_types": [
-        "Sponge attacks — inputs maximizing compute without useful output",
-        "Inference-time DoS — flooding API with expensive requests",
-        "Context window flooding — forcing maximum token processing",
-        "Gradient computation exhaustion — affecting training pipelines",
-        "Memory overflow attacks — forcing OOM conditions"
-      ],
-      "affected_ai_types": ["API-exposed LLMs", "Real-time AI systems", "Agentic pipelines"],
-      "mitigations": [
-        "Request rate limiting and circuit breakers",
-        "Per-query compute budget enforcement",
-        "Token length limits on inputs and outputs",
-        "DDoS protection at API gateway level",
-        "Autoscaling with abuse detection"
-      ],
-      "owasp_llm": ["LLM10"],
-      "nist_rmf": ["MANAGE-4.1", "MEASURE-2.5"],
-      "eu_ai_act": ["Art. 15"],
-      "iso42001": ["Clause 8.4", "Annex A.6"]
+    "T-10": {
+        "title": "AI System Availability Attacks (AI-DoS)",
+        "category": "Availability",
+        "description": (
+            "Adversaries degrade or disable AI systems through sponge attacks, "
+            "resource exhaustion, or model-targeted denial of service."
+        ),
+        "impact": "MEDIUM",
+        "likelihood": "MEDIUM",
+        "owasp_mapping": "LLM10",
+        "nist_rmf": "MANAGE 4.1, MEASURE 2.5",
+        "eu_ai_act": "Art. 15 (Robustness and Cybersecurity)",
+        "mitigations": [
+            "Request rate limiting and circuit breakers",
+            "Compute budget enforcement per query",
+            "DDoS protection at API gateway",
+            "Model serving infrastructure scaling",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do you have DoS protection specifically for your AI inference endpoints?",
+                "options": ["Yes, AI-specific protection", "Generic DDoS protection", "No"],
+                "weights": [1.0, 0.5, 0.0],
+            },
+        ],
     },
-    {
-      "id": "T-11",
-      "title": "Autonomous AI Agent Misuse",
-      "category": "Integrity",
-      "impact": "CRITICAL",
-      "likelihood": "HIGH",
-      "description": "Agentic AI systems perform unintended, harmful, or unauthorized actions due to excessive permissions, insufficient oversight, or adversarial manipulation.",
-      "sub_types": [
-        "Prompt injection triggering unauthorized tool calls",
-        "Scope creep through ambiguous task delegation",
-        "Privilege escalation via chained tool use",
-        "Autonomous actions without human confirmation",
-        "Multi-agent collusion for unintended goals"
-      ],
-      "affected_ai_types": ["AI agents", "Autonomous systems", "Multi-agent frameworks", "RPA+AI systems"],
-      "mitigations": [
-        "Principle of least privilege for agent tool permissions",
-        "Human-in-the-loop gates for high-impact actions",
-        "Agent action logging and immutable audit trails",
-        "Sandboxed execution environments for agents",
-        "Capability declarations and permission allow-lists"
-      ],
-      "owasp_llm": ["LLM06"],
-      "nist_rmf": ["GOVERN-1.7", "MAP-5.2"],
-      "eu_ai_act": ["Art. 14", "Art. 9"],
-      "iso42001": ["Clause 6.1.2", "Annex A.6"]
-    }
-  ]
+    "T-11": {
+        "title": "Autonomous AI Agent Misuse",
+        "category": "Integrity",
+        "description": (
+            "Agentic AI systems perform unintended, harmful, or unauthorized actions "
+            "due to excessive permissions, missing oversight, or manipulation by adversaries."
+        ),
+        "impact": "CRITICAL",
+        "likelihood": "HIGH",
+        "owasp_mapping": "LLM06",
+        "nist_rmf": "GOVERN 1.7, MAP 5.2",
+        "eu_ai_act": "Art. 14 (Human Oversight), Art. 9 (Risk Management)",
+        "mitigations": [
+            "Principle of least privilege for agent tool access",
+            "Human-in-the-loop for high-impact actions",
+            "Agent action logging and audit trail",
+            "Sandboxing and containment of agent environments",
+        ],
+        "assessment_questions": [
+            {
+                "q": "Do AI agents operate with minimum necessary permissions (least privilege)?",
+                "options": ["Yes, enforced", "Partially", "No"],
+                "weights": [1.0, 0.4, 0.0],
+            },
+            {
+                "q": "Are high-impact agent actions gated behind human approval?",
+                "options": ["Yes, always", "For critical actions", "No"],
+                "weights": [1.0, 0.5, 0.0],
+            },
+        ],
+    },
 }
+
+
+def run_enisa_assessment(interactive: bool = True) -> dict:
+    """Run ENISA threat assessment questionnaire."""
+    answers = {}
+
+    if interactive:
+        print("\n" + "="*65)
+        print("  CYBER&LEGAL · ENISA AI THREAT LANDSCAPE ASSESSMENT")
+        print("  Based on ENISA AI Threat Landscape Report 2024")
+        print("  License: CC BY 4.0 — enisa.europa.eu")
+        print("="*65)
+
+    threat_scores = {}
+
+    for tid, threat in ENISA_THREATS.items():
+        question_scores = []
+
+        if interactive:
+            print(f"\n  {'─'*60}")
+            print(f"  [{tid}] {threat['title']}")
+            print(f"  Impact: {threat['impact']}  |  Likelihood: {threat['likelihood']}")
+            print(f"  {threat['description']}")
+
+        for i, aq in enumerate(threat["assessment_questions"]):
+            if interactive:
+                print(f"\n  Q{i+1}: {aq['q']}")
+                for j, opt in enumerate(aq["options"]):
+                    print(f"    {j+1}. {opt}")
+
+                while True:
+                    try:
+                        choice = int(input("  Your answer: ").strip()) - 1
+                        if 0 <= choice < len(aq["options"]):
+                            score = aq["weights"][choice]
+                            question_scores.append(score)
+                            answers[f"{tid}_Q{i+1}"] = {"answer": aq["options"][choice], "score": score}
+                            break
+                    except (ValueError, KeyboardInterrupt):
+                        pass
+            else:
+                # Default to worst case for non-interactive
+                question_scores.append(0.0)
+
+        avg = sum(question_scores) / len(question_scores) if question_scores else 0
+
+        # Risk score = inverse of mitigation score × impact weight
+        impact_weight = {"CRITICAL": 1.0, "HIGH": 0.75, "MEDIUM": 0.5, "LOW": 0.25}.get(threat["impact"], 0.5)
+        residual_risk = (1 - avg) * impact_weight
+
+        threat_scores[tid] = {
+            "title": threat["title"],
+            "category": threat["category"],
+            "impact": threat["impact"],
+            "likelihood": threat["likelihood"],
+            "owasp_mapping": threat["owasp_mapping"],
+            "eu_ai_act": threat["eu_ai_act"],
+            "mitigation_score": round(avg, 3),
+            "residual_risk_score": round(residual_risk, 3),
+            "risk_level": (
+                "LOW" if residual_risk < 0.2 else
+                "MEDIUM" if residual_risk < 0.4 else
+                "HIGH" if residual_risk < 0.7 else
+                "CRITICAL"
+            ),
+            "recommended_mitigations": threat["mitigations"],
+        }
+
+    # Compute overall
+    all_residual = [v["residual_risk_score"] for v in threat_scores.values()]
+    avg_residual = sum(all_residual) / len(all_residual)
+
+    critical_threats = [tid for tid, v in threat_scores.items() if v["risk_level"] == "CRITICAL"]
+
+    return {
+        "meta": {
+            "tool": "Cyber&Legal · ENISA Threat Assessor",
+            "standard": "ENISA AI Threat Landscape Report 2024",
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+        },
+        "overall_residual_risk": round(avg_residual, 3),
+        "risk_rating": (
+            "LOW RISK" if avg_residual < 0.2 else
+            "MEDIUM RISK" if avg_residual < 0.4 else
+            "HIGH RISK" if avg_residual < 0.6 else
+            "CRITICAL RISK"
+        ),
+        "critical_threats": critical_threats,
+        "threats": threat_scores,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Cyber&Legal · ENISA AI Threat Assessor")
+    parser.add_argument("--interactive", action="store_true", default=True)
+    parser.add_argument("--output", default="reports/output/enisa_assessment.json")
+    args = parser.parse_args()
+
+    result = run_enisa_assessment(args.interactive)
+
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+    with open(args.output, "w") as f:
+        json.dump(result, f, indent=2)
+
+    print(f"\n  ENISA Residual Risk: {result['overall_residual_risk']:.0%}")
+    print(f"  Risk Rating        : {result['risk_rating']}")
+    if result["critical_threats"]:
+        print(f"  ⚠️  Critical Threats : {', '.join(result['critical_threats'])}")
+    print(f"\n  Report saved to: {args.output}\n")
+
+
+if __name__ == "__main__":
+    main()

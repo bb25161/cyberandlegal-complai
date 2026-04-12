@@ -1,110 +1,120 @@
-#!/usr/bin/env bash
-# scripts/run_full_assessment.sh
-# Cyber&Legal · Full Multi-Framework Assessment Runner
-# ====================================================
-# Runs COMPL-AI + OWASP + NIST + ENISA and generates HTML report
+# 🗺️ Cross-Framework Control Mapping
+## Cyber&Legal · AI Governance Lab
 
-set -e
+> **Purpose:** This document shows how the same AI risk is covered simultaneously across EU AI Act, NIST AI RMF, OWASP LLM Top 10, ENISA, and ISO 42001. Use this to avoid duplicate work and maximize compliance coverage with each control implemented.
 
-# Load environment variables
-if [ -f ".env" ]; then
-  export $(grep -v '^#' .env | xargs)
-fi
+---
 
-MODEL="${COMPLAI_MODEL:-openai/gpt-4o-mini}"
-LIMIT="${COMPLAI_LIMIT:-20}"
-PROVIDER="${MODEL_PROVIDER:-openai}"
-MODEL_SHORT="${MODEL##*/}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-OUTPUT_DIR="reports/output"
-TITLE="AI Governance Assessment — ${MODEL_SHORT} — ${TIMESTAMP}"
+## How to Read This Table
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  Cyber&Legal · Full AI Governance Assessment              ║"
-echo "╚══════════════════════════════════════════════════════════╝"
-echo "  Model    : $MODEL"
-echo "  Provider : $PROVIDER"
-echo "  Limit    : $LIMIT samples per benchmark"
-echo "  Output   : $OUTPUT_DIR"
-echo ""
+Each row is a **specific AI risk or requirement**. The columns show where that requirement appears in each framework. Implementing one control can satisfy multiple frameworks at once.
 
-mkdir -p "$OUTPUT_DIR" reports/raw
+**Coverage levels:**
+- ✅ **Primary** — this framework defines the core requirement
+- ⚠️ **Referenced** — this framework mentions or implies the requirement
+- ➖ **Not covered** — outside this framework's scope
 
-# ── Step 1: COMPL-AI (EU AI Act Benchmarks) ──────────────────────────────────
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 1/4: COMPL-AI — EU AI Act Evaluation"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+---
 
-source compl-ai/.venv/bin/activate 2>/dev/null || true
+## Master Cross-Framework Mapping Table
 
-python assessments/compl_ai_runner.py \
-  --model "$MODEL" \
-  --tasks all \
-  --limit "$LIMIT" \
-  --results-dir reports/raw \
-  --output "$OUTPUT_DIR/assessment_summary.json"
+| Risk / Requirement | EU AI Act | NIST AI RMF | OWASP LLM | ENISA | ISO 42001 | COMPL-AI Benchmark |
+|---|---|---|---|---|---|---|
+| **Human oversight of AI decisions** | Art. 14 ✅ | GOVERN-1.7 ✅ | LLM06 ⚠️ | T-11 ⚠️ | Clause 6.1.2 ✅ | sycophancy_eval, ifbench |
+| **Prompt injection prevention** | Art. 15 ✅ | MEASURE-2.3 ✅ | LLM01 ✅ | T-05 ✅ | Annex A.6 ⚠️ | harmbench, wildguard |
+| **PII / sensitive data protection** | Art. 10 + GDPR ✅ | MAP-3.5 ✅ | LLM02 ✅ | T-04 ✅ | Clause 8.3 ✅ | privacylens, pii_detection |
+| **Bias and fairness testing** | Art. 10(5) ✅ | MEASURE-2.2 ✅ | LLM09 ⚠️ | T-06 ✅ | Clause 8.4.2 ✅ | bbq, winobias, crows_pairs |
+| **AI identity transparency** | Art. 13 + Art. 50 ✅ | GOVERN-1.5 ✅ | LLM09 ⚠️ | T-09 ✅ | Clause 7.4 ✅ | human_or_ai, mask |
+| **Third-party / supply chain** | Art. 25 ✅ | GOVERN-6.1 ✅ | LLM03 ✅ | T-07 ✅ | Clause 8.4.3 ✅ | — |
+| **Adversarial robustness** | Art. 15 ✅ | MEASURE-2.3 ✅ | LLM01, LLM05 ✅ | T-01 ✅ | Annex A.6 ⚠️ | adversarial_nli, arc_challenge |
+| **Training data poisoning** | Art. 10 ✅ | MAP-3.5 ✅ | LLM04 ✅ | T-02 ✅ | Clause 8.3 ✅ | — |
+| **Model theft / extraction** | Art. 15 ⚠️ | MEASURE-2.6 ✅ | LLM03 ✅ | T-03 ✅ | Annex A.9 ⚠️ | — |
+| **Misinformation / hallucination** | Art. 13 ✅ | MEASURE-2.3 ✅ | LLM09 ✅ | T-08 ✅ | Clause 8.2 ✅ | simpleqa_verified, calibration_ece |
+| **System prompt leakage** | Art. 13 ⚠️ | GOVERN-1.5 ⚠️ | LLM07 ✅ | T-03 ⚠️ | Clause 7.5 ⚠️ | mask |
+| **Excessive agent autonomy** | Art. 14 ✅ | GOVERN-1.7 ✅ | LLM06 ✅ | T-11 ✅ | Clause 6.1.2 ✅ | instruction_goal_hijacking |
+| **DoS / availability attacks** | Art. 15 ⚠️ | MANAGE-4.1 ✅ | LLM10 ✅ | T-10 ✅ | Annex A.6 ⚠️ | — |
+| **Incident response** | Art. 62 ✅ | MANAGE-2.2 ✅ | LLM07 ⚠️ | T-10 ⚠️ | Clause 10.2 ✅ | — |
+| **AI governance policy** | Art. 9 ✅ | GOVERN-1.1 ✅ | — ➖ | — ➖ | Clause 5.2 ✅ | — |
+| **Risk management system** | Art. 9 ✅ | MAP-5.1 ✅ | — ➖ | — ➖ | Clause 6.1 ✅ | — |
+| **Technical documentation** | Art. 11 ✅ | GOVERN-1.5 ⚠️ | — ➖ | — ➖ | Clause 7.5 ✅ | — |
+| **Post-market monitoring** | Art. 72 ✅ | MANAGE-4.1 ✅ | — ➖ | T-01 ⚠️ | Clause 9.1 ✅ | — |
+| **Deepfake / synthetic content** | Art. 50 ✅ | GOVERN-1.5 ⚠️ | LLM09 ⚠️ | T-08 ✅ | Clause 8.2 ⚠️ | — |
+| **AI literacy / training** | Art. 4 ✅ | GOVERN-2.2 ✅ | — ➖ | — ➖ | Clause 7.2 ✅ | — |
 
-deactivate 2>/dev/null || true
+---
 
-# ── Step 2: OWASP LLM Top 10 ─────────────────────────────────────────────────
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 2/4: OWASP LLM Top 10 (2025 Edition)"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+## Framework Profiles — What Each Covers Best
 
-python assessments/owasp_llm_assessor.py \
-  --model "$MODEL_SHORT" \
-  --provider "$PROVIDER" \
-  --output "$OUTPUT_DIR/owasp_assessment.json"
+### EU AI Act
+**Type:** Binding law (regulation)
+**Best for:** Legal compliance, market access requirements, penalty avoidance
+**Unique to EU AI Act:** Risk classification system (Unacceptable/High/Limited/Minimal), GPAI model obligations, FRIA requirement, mandatory registration
+**Does NOT cover:** Technical implementation details — it says *what*, not *how*
 
-# ── Step 3: NIST AI RMF (non-interactive mode for CI) ────────────────────────
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 3/4: NIST AI RMF Assessment"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+### NIST AI RMF (AI 100-1 + AI 600-1)
+**Type:** Voluntary framework (but referenced in US federal procurement)
+**Best for:** Operational AI risk management, organizational maturity assessment
+**Unique to NIST:** Four-function model (GOVERN/MAP/MEASURE/MANAGE), GenAI-specific risk taxonomy (12 categories in AI 600-1), maturity levels
+**Does NOT cover:** Binding legal requirements, specific penalties
 
-if [ -f "assessments/nist_answers.json" ]; then
-  python assessments/nist_rmf_mapper.py \
-    --input assessments/nist_answers.json \
-    --output "$OUTPUT_DIR/nist_assessment.json"
-  echo "  ✅ NIST assessment complete (from pre-filled answers)"
-else
-  echo "  ℹ️  No nist_answers.json found — run interactively:"
-  echo "      python assessments/nist_rmf_mapper.py --interactive"
-  echo "  Creating placeholder..."
-  echo '{"meta":{"tool":"Cyber&Legal NIST Assessor","note":"Run --interactive to complete"},"scores":{"overall_nist_score":null,"overall_maturity":"NOT ASSESSED","functions":{}}}' > "$OUTPUT_DIR/nist_assessment.json"
-fi
+### OWASP LLM Top 10 (2025)
+**Type:** Community security standard
+**Best for:** Technical security testing, developer-facing vulnerability prioritization
+**Unique to OWASP:** Ranked vulnerability list with attack vectors and CWE mappings, red-team test cases, hands-on technical mitigations
+**Does NOT cover:** Organizational governance, data quality, societal impacts
 
-# ── Step 4: ENISA Threat Landscape (non-interactive for CI) ──────────────────
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 4/4: ENISA AI Threat Landscape"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+### ENISA AI Threat Landscape
+**Type:** European agency advisory
+**Best for:** Threat modeling, attack scenario planning, security risk assessment
+**Unique to ENISA:** Physical-world attack coverage, geopolitical context, EU-specific threat intelligence
+**Does NOT cover:** Organizational governance, compliance certification
 
-if [ -f "assessments/enisa_answers.json" ]; then
-  python assessments/enisa_threat_evaluator.py \
-    --output "$OUTPUT_DIR/enisa_assessment.json"
-  echo "  ✅ ENISA assessment complete"
-else
-  echo "  ℹ️  Run interactively: python assessments/enisa_threat_evaluator.py --interactive"
-fi
+### ISO/IEC 42001:2023
+**Type:** Certifiable international standard
+**Best for:** Third-party certification, enterprise governance, auditable AIMS
+**Unique to ISO 42001:** Plan-Do-Check-Act lifecycle, certifiable by accredited auditors, aligns with ISO 27001 and ISO 9001
+**Does NOT cover:** Specific technical test methods, regulatory enforcement
 
-# ── Generate HTML Report ──────────────────────────────────────────────────────
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Generating HTML Report"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+---
 
-python scripts/generate_report.py \
-  --title "$TITLE" \
-  --model "$MODEL" \
-  --output "$OUTPUT_DIR/assessment_report.html"
+## Efficiency Map — Controls Satisfying Multiple Frameworks
 
-echo ""
-echo "╔══════════════════════════════════════════════════╗"
-echo "║  ✅ Assessment Complete!                          ║"
-echo "╚══════════════════════════════════════════════════╝"
-echo "  Report: $OUTPUT_DIR/assessment_report.html"
-echo "  Open  : open $OUTPUT_DIR/assessment_report.html"
-echo ""
+**Implementing these 5 controls gives maximum cross-framework coverage:**
+
+### 1. Adversarial Testing / Red-Teaming
+Satisfies: EU AI Act Art. 15 + NIST MEASURE-2.3 + OWASP LLM01/LLM05 + ENISA T-01/T-05 + ISO Annex A.6
+**Tool:** COMPL-AI `harmbench`, `wildguard`, `strong_reject`
+
+### 2. Bias and Fairness Benchmarking
+Satisfies: EU AI Act Art. 10(5) + NIST MEASURE-2.2 + OWASP LLM09 + ENISA T-06 + ISO 42001 Clause 8.4.2
+**Tool:** COMPL-AI `bbq`, `winobias`, `crows_pairs`, `toxigen`
+
+### 3. Human Oversight Controls
+Satisfies: EU AI Act Art. 14 + NIST GOVERN-1.7 + OWASP LLM06 + ENISA T-11 + ISO 42001 Clause 6.1.2
+**Tool:** COMPL-AI `sycophancy_eval`, `instruction_goal_hijacking`
+
+### 4. Data Governance and Privacy
+Satisfies: EU AI Act Art. 10 + GDPR + NIST MAP-3.5 + OWASP LLM02 + ENISA T-04 + ISO 42001 Clause 8.3
+**Tool:** COMPL-AI `privacylens`, `pii_detection`
+
+### 5. Supply Chain Risk Management
+Satisfies: EU AI Act Art. 25 + NIST GOVERN-6.1 + OWASP LLM03 + ENISA T-07 + ISO 42001 Clause 8.4.3
+**Tool:** AI Bill of Materials (AIBOM), vendor assessment questionnaire
+
+---
+
+## License Compliance Summary
+
+| Framework Data Used | Source License | Our Usage | Conditions |
+|---|---|---|---|
+| COMPL-AI benchmarks | Apache 2.0 | Wrapper/integration | Attribution required |
+| NIST AI RMF | Public Domain (U.S. Gov) | Full reproduction allowed | None |
+| OWASP LLM Top 10 | CC BY-SA 4.0 | Referenced, paraphrased | Attribution + ShareAlike |
+| ENISA Threat Landscape | CC BY 4.0 | Referenced, adapted | Attribution |
+| ISO/IEC 42001 | Proprietary | Self-assessment questions only | Cannot reproduce standard text |
+| YDC AIGOV Framework | CC BY-NC 4.0 | Non-commercial reference | Attribution + NonCommercial |
+
+---
+
+*Document maintained by Cyber&Legal — cyberandlegal.com*
+*Last updated: 2025 | Apache 2.0*
