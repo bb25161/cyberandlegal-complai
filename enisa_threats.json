@@ -1,0 +1,16 @@
+{
+  "_meta": {"title": "ENISA AI Threat Landscape 2024", "license": "CC BY 4.0"},
+  "threats": [
+    {"id": "T-01", "title": "Evasion Attacks", "category": "Technical", "impact": "HIGH", "likelihood": "HIGH", "mitigations": ["Adversarial training", "Input validation"]},
+    {"id": "T-02", "title": "Data Poisoning", "category": "Technical", "impact": "CRITICAL", "likelihood": "MEDIUM", "mitigations": ["Data provenance", "Anomaly detection"]},
+    {"id": "T-03", "title": "Model Theft", "category": "Technical", "impact": "HIGH", "likelihood": "MEDIUM", "mitigations": ["Rate limiting", "API access controls"]},
+    {"id": "T-04", "title": "Privacy Attacks", "category": "Privacy", "impact": "HIGH", "likelihood": "HIGH", "mitigations": ["Differential privacy", "Output filtering"]},
+    {"id": "T-05", "title": "Prompt Injection", "category": "Security", "impact": "CRITICAL", "likelihood": "VERY HIGH", "mitigations": ["Input sanitization", "Output monitoring"]},
+    {"id": "T-06", "title": "Bias & Discrimination", "category": "Ethics", "impact": "HIGH", "likelihood": "HIGH", "mitigations": ["Bias testing", "Fairness metrics"]},
+    {"id": "T-07", "title": "Supply Chain Attacks", "category": "Supply Chain", "impact": "CRITICAL", "likelihood": "MEDIUM", "mitigations": ["AIBOM", "Vendor assessment"]},
+    {"id": "T-08", "title": "Misinformation", "category": "Societal", "impact": "HIGH", "likelihood": "HIGH", "mitigations": ["Content labeling", "Fact-checking"]},
+    {"id": "T-09", "title": "Lack of Transparency", "category": "Governance", "impact": "MEDIUM", "likelihood": "HIGH", "mitigations": ["XAI tools", "Decision logging"]},
+    {"id": "T-10", "title": "DoS/Availability", "category": "Technical", "impact": "HIGH", "likelihood": "MEDIUM", "mitigations": ["Rate limiting", "DDoS protection"]},
+    {"id": "T-11", "title": "Excessive Autonomy", "category": "Governance", "impact": "CRITICAL", "likelihood": "MEDIUM", "mitigations": ["Human oversight", "Action limits"]}
+  ]
+}
