@@ -1,0 +1,427 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lab.cyberandlegal.com/schemas/intake/v1.0",
+  "title": "Cyber&Legal AI Governance — Intake Schema v1.0",
+  "description": "Single source of truth for AI system risk assessment. All downstream engines consume this schema. Based on: NIST AI RMF MAP-1.1, OECD harm taxonomy 2024, EU AI Act Art. 27 FRIA, ISO 31000.",
+  "type": "object",
+  "required": ["assessment_id", "timestamp", "context", "harm_dimensions", "likelihood_inputs", "control_inventory"],
+  "properties": {
+
+    "assessment_id": {
+      "type": "string",
+      "description": "Unique assessment identifier. Format: CL-YYYYMMDD-XXX",
+      "pattern": "^CL-[0-9]{8}-[A-Z0-9]{3,10}$",
+      "example": "CL-20260412-001"
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of assessment creation"
+    },
+
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version — frozen. Risk formula and mapping rules also frozen. Only evidence layer updates."
+    },
+
+    "context": {
+      "type": "object",
+      "description": "Use-case context. Source: NIST AI RMF MAP-1.1 — purpose, intended users, deployment environment.",
+      "required": ["organization", "sector", "use_case_type", "automation_level", "ai_system_source", "decision_frequency"],
+      "properties": {
+
+        "organization": { "type": "string", "minLength": 2 },
+
+        "sector": {
+          "type": "string",
+          "enum": ["finance", "healthcare", "legal", "public", "energy", "hr_recruitment", "customer_service", "manufacturing", "education", "other"],
+          "description": "Sector determines EU AI Act risk class and baseline regulatory obligations"
+        },
+
+        "use_case_type": {
+          "type": "string",
+          "enum": [
+            "decision_making_about_individuals",
+            "recommendation_system",
+            "content_generation",
+            "process_automation",
+            "monitoring_surveillance",
+            "fraud_detection",
+            "credit_scoring",
+            "medical_diagnosis",
+            "hr_screening",
+            "customer_service_chatbot",
+            "other"
+          ],
+          "description": "Primary use case. Maps to EU AI Act Annex III high-risk categories."
+        },
+
+        "automation_level": {
+          "type": "string",
+          "enum": [
+            "fully_automated",
+            "human_approval_required",
+            "human_informed",
+            "assistance_only"
+          ],
+          "description": "How much the AI influences final decisions. Source: NIST GOVERN-1.7, EU AI Act Art. 14"
+        },
+
+        "decision_frequency": {
+          "type": "object",
+          "description": "Scale of AI impact. Source: OECD harm dimensions — scope and scale.",
+          "properties": {
+            "people_affected_monthly": {
+              "type": "string",
+              "enum": ["under_100", "100_to_1000", "1000_to_100000", "over_100000"]
+            },
+            "decision_criticality": {
+              "type": "string",
+              "enum": ["life_changing", "significant", "moderate", "minor"],
+              "description": "How much a single AI decision affects one person's life"
+            }
+          }
+        },
+
+        "ai_system_source": {
+          "type": "string",
+          "enum": [
+            "built_inhouse",
+            "third_party_api",
+            "saas_product",
+            "open_source_deployed",
+            "combination"
+          ],
+          "description": "Who built the AI. Source: EU AI Act Art. 25 supply chain, OWASP LLM03"
+        },
+
+        "transparency_level": {
+          "type": "string",
+          "enum": ["fully_explainable", "partially_explainable", "black_box", "unknown"],
+          "description": "Can decisions be explained to affected persons? Source: EU AI Act Art. 13"
+        },
+
+        "data_sensitivity": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "no_personal_data",
+              "basic_personal_data",
+              "financial_data",
+              "health_data",
+              "biometric_data",
+              "location_data",
+              "behavioural_data",
+              "employment_data",
+              "childrens_data",
+              "special_category_gdpr"
+            ]
+          },
+          "description": "Types of personal data processed. Source: GDPR Art. 9, ENISA T-04"
+        },
+
+        "training_data_source": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "own_historical_data",
+              "public_datasets",
+              "third_party_commercial",
+              "internet_scraped",
+              "synthetic_data",
+              "unknown_third_party",
+              "not_applicable"
+            ]
+          },
+          "description": "Source of training data. Source: EU AI Act Art. 10, NIST MAP-3.5, OWASP LLM04"
+        },
+
+        "vendor_documentation_available": {
+          "type": "string",
+          "enum": ["full_technical_docs", "partial_docs", "terms_of_service_only", "none", "not_applicable"],
+          "description": "Third-party AI provider documentation. Source: EU AI Act Art. 13, BaFin DORA guidance"
+        }
+      }
+    },
+
+    "harm_dimensions": {
+      "type": "object",
+      "description": "What could go wrong and who is affected. Source: OECD harm taxonomy 2024, EU AI Act FRIA Art. 27, NIST MAP impact characterization.",
+      "required": ["harm_types", "affected_stakeholders", "rights_at_risk", "reversibility", "cascade_effect"],
+      "properties": {
+
+        "harm_types": {
+          "type": "array",
+          "description": "Categories of harm this AI system could cause. Source: OECD AIAAIC taxonomy — Physical, Financial, Psychological, Reputational, Operational, Societal.",
+          "items": {
+            "type": "object",
+            "required": ["type", "severity"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "physical_safety",
+                  "financial_loss",
+                  "psychological_harm",
+                  "reputational_damage",
+                  "legal_rights_violation",
+                  "discrimination",
+                  "loss_of_essential_services",
+                  "privacy_violation",
+                  "societal_democratic"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["catastrophic", "critical", "significant", "moderate", "minor"],
+                "description": "Severity if this harm materialises"
+              }
+            }
+          }
+        },
+
+        "affected_stakeholders": {
+          "type": "array",
+          "description": "Who is affected by AI decisions. Source: NIST impact layers — individuals, groups, communities, organizations, society, environment.",
+          "items": {
+            "type": "object",
+            "required": ["stakeholder_type", "is_vulnerable"],
+            "properties": {
+              "stakeholder_type": {
+                "type": "string",
+                "enum": [
+                  "general_adult_users",
+                  "employees_job_applicants",
+                  "children_under_18",
+                  "elderly_65_plus",
+                  "people_with_disabilities",
+                  "financially_vulnerable",
+                  "migrants_undocumented",
+                  "patients_healthcare",
+                  "people_in_legal_proceedings",
+                  "business_partners_suppliers",
+                  "general_public",
+                  "environment"
+                ]
+              },
+              "is_vulnerable": {
+                "type": "boolean",
+                "description": "Requires extra protection under EU AI Act FRIA, GDPR, or sector law"
+              }
+            }
+          }
+        },
+
+        "rights_at_risk": {
+          "type": "array",
+          "description": "Fundamental rights potentially affected. Source: EU Charter of Fundamental Rights, FRIA Art. 27.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "non_discrimination",
+              "privacy_data_protection",
+              "right_to_explanation",
+              "right_to_appeal",
+              "access_to_essential_services",
+              "employment_rights",
+              "financial_rights",
+              "freedom_of_expression",
+              "human_dignity",
+              "childrens_rights"
+            ]
+          }
+        },
+
+        "scale_of_impact": {
+          "type": "object",
+          "description": "How many people could be affected by a single AI error. Source: OECD harm dimensions — scope, scale.",
+          "properties": {
+            "geographic_scope": {
+              "type": "string",
+              "enum": ["individual", "local", "national", "european", "global"]
+            },
+            "population_potentially_harmed": {
+              "type": "string",
+              "enum": ["single_person", "small_group", "large_group", "entire_population_segment"]
+            }
+          }
+        },
+
+        "reversibility": {
+          "type": "string",
+          "enum": ["immediately_reversible", "reversible_with_effort", "difficult_to_reverse", "irreversible"],
+          "description": "Can harm be undone? Source: OECD harm dimensions — reversibility. Irreversible harm triggers higher risk multiplier."
+        },
+
+        "cascade_effect": {
+          "type": "string",
+          "enum": ["contained", "triggers_further_automated_decisions", "affects_many_before_detected", "systemic"],
+          "description": "Does one AI error trigger more automated decisions? Source: EU AI Act recital 96, FRIA cascading effects."
+        },
+
+        "detectability": {
+          "type": "string",
+          "enum": ["immediately_visible", "detectable_within_days", "detectable_within_months", "may_never_be_detected"],
+          "description": "How quickly would a harmful decision be noticed? Goes to Likelihood engine, not Harm."
+        }
+      }
+    },
+
+    "likelihood_inputs": {
+      "type": "object",
+      "description": "Inputs for Likelihood score. Source: NIST AI RMF MEASURE, EU AI Act Art. 9 probabilistic thresholds, ENISA threat intelligence.",
+      "properties": {
+
+        "threat_exposure": {
+          "type": "string",
+          "enum": ["very_high", "high", "medium", "low"],
+          "description": "Based on ENISA threat landscape for this sector. Updated monthly via evidence layer."
+        },
+
+        "past_incidents": {
+          "type": "string",
+          "enum": ["multiple_known_incidents", "one_known_incident", "near_misses_only", "none_known"],
+          "description": "Known AI incidents in similar systems or sector. Source: OECD AI Incidents Monitor, MIT AIR."
+        },
+
+        "model_susceptibility": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"],
+          "description": "How susceptible is this model type to known attack vectors (prompt injection, bias, hallucination)"
+        },
+
+        "deployment_environment_risk": {
+          "type": "string",
+          "enum": ["public_facing_high_volume", "public_facing_low_volume", "internal_only", "sandboxed"],
+          "description": "Broader attack surface = higher likelihood"
+        }
+      }
+    },
+
+    "control_inventory": {
+      "type": "object",
+      "description": "Existing safeguards. Used to calculate Control Effectiveness and Control Gap. Source: EU AI Act Art. 14, ISO 42001 Clause 8, NIST GOVERN.",
+      "properties": {
+
+        "human_oversight": {
+          "type": "object",
+          "description": "Source: EU AI Act Art. 14 capability set — understanding, monitoring, bias awareness, override, stop.",
+          "properties": {
+            "oversight_quality": {
+              "type": "string",
+              "enum": ["full_meaningful_review", "partial_review", "rubber_stamp", "none"],
+              "description": "Full = human has all information and can freely override. Rubber stamp = false safety."
+            },
+            "can_override_ai": { "type": "boolean" },
+            "can_stop_system": { "type": "boolean" },
+            "automation_bias_training": { "type": "boolean" }
+          }
+        },
+
+        "explainability": {
+          "type": "object",
+          "properties": {
+            "decisions_explainable_to_users": { "type": "boolean" },
+            "explanation_quality": {
+              "type": "string",
+              "enum": ["full_xai", "summary_explanation", "no_explanation", "not_applicable"]
+            }
+          }
+        },
+
+        "monitoring_logging": {
+          "type": "object",
+          "description": "Source: EU AI Act Art. 12 logging, NIST MEASURE",
+          "properties": {
+            "logging_active": { "type": "boolean" },
+            "monitoring_frequency": {
+              "type": "string",
+              "enum": ["real_time", "daily", "periodic", "none"]
+            },
+            "audit_trail_available": { "type": "boolean" }
+          }
+        },
+
+        "opt_out_and_escalation": {
+          "type": "object",
+          "description": "Source: OECD optionality concept, EU AI Act FRIA",
+          "properties": {
+            "user_can_request_human_review": { "type": "boolean" },
+            "human_escalation_path_exists": { "type": "boolean" },
+            "vulnerable_user_detection": { "type": "boolean" }
+          }
+        },
+
+        "testing_and_validation": {
+          "type": "object",
+          "description": "Source: EU AI Act Art. 9, NIST MEASURE TEVV",
+          "properties": {
+            "bias_testing_performed": { "type": "boolean" },
+            "adversarial_testing_performed": { "type": "boolean" },
+            "testing_frequency": {
+              "type": "string",
+              "enum": ["continuous", "per_release", "annual", "one_time", "never"]
+            },
+            "test_coverage": {
+              "type": "string",
+              "enum": ["comprehensive", "partial", "basic", "none"]
+            }
+          }
+        },
+
+        "supply_chain_controls": {
+          "type": "object",
+          "description": "Source: EU AI Act Art. 25, BaFin DORA, OWASP LLM03, ENISA T-07",
+          "properties": {
+            "vendor_risk_assessed": { "type": "boolean" },
+            "model_card_available": { "type": "boolean" },
+            "bias_test_results_from_vendor": { "type": "boolean" },
+            "contractual_audit_rights": { "type": "boolean" }
+          }
+        },
+
+        "incident_response": {
+          "type": "object",
+          "description": "Source: EU AI Act Art. 27(f), ISO 42001",
+          "properties": {
+            "incident_response_plan_exists": { "type": "boolean" },
+            "complaint_mechanism_available": { "type": "boolean" },
+            "fallback_procedure_defined": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "evidence_layer": {
+      "type": "object",
+      "description": "Results from automated testing engines. Feeds Likelihood score. Updated independently of schema. Source: NIST MEASURE, EU AI Act Art. 9.",
+      "properties": {
+        "compl_ai_bias_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "owasp_composite_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "lm_eval_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "promptfoo_red_team_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "enisa_threat_level": { "type": ["string", "null"], "enum": ["critical", "high", "medium", "low", null] },
+        "evidence_timestamp": { "type": ["string", "null"], "format": "date-time" },
+        "evidence_version": { "type": ["string", "null"] }
+      }
+    },
+
+    "audit_log": {
+      "type": "object",
+      "description": "Traceability for every assessment. Which schema version, which evidence, which assessor.",
+      "properties": {
+        "assessor": { "type": "string" },
+        "schema_version_used": { "type": "string", "const": "1.0" },
+        "weights_baseline_version": { "type": "string" },
+        "methodology_reference": {
+          "type": "string",
+          "const": "Cyber&Legal Risk Engine v2.0 — ISO 31000 methodology. Risk = Inherent Risk x Control Gap. Regulatory frameworks are mapping layer only."
+        }
+      }
+    }
+  }
+}

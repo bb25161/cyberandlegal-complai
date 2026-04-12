@@ -1,0 +1,377 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lab.cyberandlegal.com/schemas/regulatory-mapping/v1.0",
+  "title": "Cyber&Legal Regulatory Mapping v1.0",
+  "description": "Maps risk profiles to regulatory obligations. This layer INTERPRETS risk scores — it does NOT produce them.",
+  "version": "1.0",
+  "last_reviewed": "2026-04-12",
+  "next_review": "2026-05-12",
+  "mapping_rules": {
+    "eu_ai_act": {
+      "description": "EU AI Act mapping rules. Enforcement: August 2026.",
+      "rules": [
+        {
+          "rule_id": "EUAIA-001",
+          "trigger_sectors": [
+            "finance",
+            "healthcare",
+            "legal",
+            "public",
+            "hr_recruitment"
+          ],
+          "trigger_use_cases": [
+            "credit_scoring",
+            "medical_diagnosis",
+            "hr_screening",
+            "decision_making_about_individuals"
+          ],
+          "trigger_risk_levels": [
+            "HIGH",
+            "CRITICAL"
+          ],
+          "classification": "HIGH-RISK",
+          "legal_basis": "EU AI Act Annex III",
+          "obligations": [
+            "Art. 9 — Risk management system throughout lifecycle",
+            "Art. 10 — Training data governance and bias testing",
+            "Art. 13 — Transparency and instructions for use",
+            "Art. 14 — Human oversight mechanisms",
+            "Art. 15 — Accuracy, robustness, cybersecurity",
+            "Art. 49 — EU database registration",
+            "Art. 27 — FRIA if public body or providing public services"
+          ],
+          "deadline": "2026-08-02",
+          "penalty": "Up to 3% global annual turnover"
+        },
+        {
+          "rule_id": "EUAIA-002",
+          "trigger": "affected_stakeholders contains vulnerable group AND automation_level in [fully_automated, human_approval_required]",
+          "vulnerable_groups": [
+            "children_under_18",
+            "elderly_65_plus",
+            "financially_vulnerable",
+            "people_with_disabilities"
+          ],
+          "classification": "HIGH-RISK — Vulnerable Group",
+          "legal_basis": "EU AI Act Art. 27 FRIA",
+          "obligations": [
+            "Art. 27 — Fundamental Rights Impact Assessment mandatory",
+            "Art. 14 — Enhanced human oversight for vulnerable groups",
+            "Art. 13 — Age-appropriate transparency"
+          ],
+          "deadline": "2026-08-02"
+        },
+        {
+          "rule_id": "EUAIA-003",
+          "trigger": "explainability=false AND automation_level=fully_automated",
+          "legal_basis": "EU AI Act Art. 13",
+          "obligations": [
+            "Art. 13 — Right to explanation must be implemented",
+            "Art. 14 — Human must be able to interpret AI outputs"
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "rule_id": "EUAIA-004",
+          "trigger": "ai_system_source in [third_party_api, saas_product] OR vendor_risk_assessed=false",
+          "legal_basis": "EU AI Act Art. 25",
+          "obligations": [
+            "Art. 25 — Deployer responsibilities for third-party AI",
+            "Art. 13 — Obtain technical documentation from provider",
+            "Due diligence before deployment"
+          ],
+          "note": "Source: BaFin Dec 2025 DORA — outsourced AI still deployer responsibility"
+        },
+        {
+          "rule_id": "EUAIA-005",
+          "trigger": "use_case in [monitoring_surveillance] AND data_sensitivity contains [biometric_data, location_data]",
+          "classification": "POTENTIAL PROHIBITED or HIGH-RISK",
+          "legal_basis": "EU AI Act Art. 5, Annex III",
+          "obligations": [
+            "Art. 5 — Verify system does not fall under prohibited AI practices",
+            "Art. 6 — Confirm Annex III classification",
+            "Legal review mandatory before deployment"
+          ],
+          "severity": "CRITICAL"
+        }
+      ]
+    },
+    "nist_ai_rmf": {
+      "description": "NIST AI RMF mapping. Voluntary but referenced by EU AI Act Art. 9.",
+      "rules": [
+        {
+          "rule_id": "NIST-001",
+          "trigger": "inherent_risk_level in [HIGH, CRITICAL] OR control_gap > 0.6",
+          "functions": [
+            "GOVERN",
+            "MAP",
+            "MEASURE",
+            "MANAGE"
+          ],
+          "obligations": [
+            "GOVERN-1.1 — AI risk policy documented",
+            "GOVERN-1.7 — Human oversight roles defined",
+            "MAP-1.1 — Use case context documented",
+            "MAP-3.5 — Training data provenance documented",
+            "MEASURE-2.1 — Performance metrics monitored",
+            "MEASURE-2.2 — Bias testing performed",
+            "MEASURE-2.3 — Adversarial testing performed",
+            "MANAGE-2.2 — Incident response plan active"
+          ]
+        },
+        {
+          "rule_id": "NIST-002",
+          "trigger": "logging_active=false AND residual_risk_level in [HIGH, CRITICAL]",
+          "obligations": [
+            "MEASURE-4.1 — Implement logging and monitoring immediately",
+            "MANAGE-4.1 — Post-deployment monitoring required"
+          ],
+          "severity": "HIGH"
+        },
+        {
+          "rule_id": "NIST-003",
+          "trigger": "transparency_level in [black_box, unknown] AND vulnerable_group=true",
+          "obligations": [
+            "MEASURE-2.6 — Explainability assessment required",
+            "MAP-5.1 — Document likelihood and magnitude for vulnerable groups"
+          ],
+          "severity": "HIGH"
+        }
+      ]
+    },
+    "owasp_llm": {
+      "description": "OWASP LLM Top 10 2025 mapping.",
+      "rules": [
+        {
+          "rule_id": "OWASP-001",
+          "trigger": "ai_system_source in [third_party_api, saas_product] OR automation_level=fully_automated",
+          "owasp_categories": [
+            "LLM01 — Prompt Injection",
+            "LLM07 — System Prompt Leakage"
+          ],
+          "obligations": [
+            "Input sanitisation controls required",
+            "Output monitoring required",
+            "Prompt injection testing with Promptfoo mandatory"
+          ]
+        },
+        {
+          "rule_id": "OWASP-002",
+          "trigger": "data_sensitivity contains [health_data, financial_data, special_category_gdpr]",
+          "owasp_categories": [
+            "LLM02 — Sensitive Information Disclosure",
+            "LLM04 — Data Poisoning"
+          ],
+          "obligations": [
+            "PII detection and filtering required",
+            "Training data provenance documentation required",
+            "Data poisoning testing required"
+          ]
+        },
+        {
+          "rule_id": "OWASP-003",
+          "trigger": "ai_system_source in [third_party_api, saas_product] AND vendor_risk_assessed=false",
+          "owasp_categories": [
+            "LLM03 — Supply Chain Vulnerabilities"
+          ],
+          "obligations": [
+            "Vendor security assessment required",
+            "Model card review required",
+            "Contractual audit rights required"
+          ],
+          "note": "Source: ENISA T-07, BaFin DORA third-party risk"
+        },
+        {
+          "rule_id": "OWASP-004",
+          "trigger": "automation_level=fully_automated AND can_override_ai=false",
+          "owasp_categories": [
+            "LLM06 — Excessive Agency"
+          ],
+          "obligations": [
+            "Human override mechanism mandatory",
+            "Action scope limits required",
+            "Stop/interrupt capability required"
+          ],
+          "severity": "CRITICAL"
+        },
+        {
+          "rule_id": "OWASP-005",
+          "trigger": "use_case_type in [content_generation, customer_service_chatbot]",
+          "owasp_categories": [
+            "LLM09 — Misinformation"
+          ],
+          "obligations": [
+            "AI-generated content labelling required",
+            "Hallucination rate testing with LM Eval required"
+          ]
+        }
+      ]
+    },
+    "enisa_threats": {
+      "description": "ENISA AI Threat Landscape 2024-25 mapping.",
+      "rules": [
+        {
+          "rule_id": "ENISA-001",
+          "trigger": "sector in [energy, public, finance] OR threat_prevalence_score > 0.7",
+          "enisa_threats": [
+            "T-01 Evasion Attacks",
+            "T-02 Data Poisoning",
+            "T-05 Prompt Injection"
+          ],
+          "obligations": [
+            "Adversarial robustness testing required",
+            "ENISA sector threat monitoring recommended",
+            "NIS2 compliance check required for critical sectors"
+          ],
+          "note": "ENISA ETL 2025 — public admin 63.1%, finance 11.7% top targets"
+        },
+        {
+          "rule_id": "ENISA-002",
+          "trigger": "ai_system_source in [third_party_api, open_source_deployed] AND model_card_available=false",
+          "enisa_threats": [
+            "T-07 Supply Chain Attacks"
+          ],
+          "obligations": [
+            "Supply chain risk assessment required",
+            "Vendor security posture review required",
+            "Open source model integrity verification required"
+          ],
+          "note": "ENISA ETL 2025 — supply chain 10.6% of all incidents"
+        },
+        {
+          "rule_id": "ENISA-003",
+          "trigger": "vulnerable_group=true AND harm_types contains discrimination",
+          "enisa_threats": [
+            "T-06 Bias and Discrimination"
+          ],
+          "obligations": [
+            "Bias testing across demographic groups required",
+            "COMPL-AI fairness benchmarks mandatory",
+            "bbq, winobias, crows_pairs tests required"
+          ]
+        }
+      ]
+    },
+    "iso_42001": {
+      "description": "ISO/IEC 42001:2023 mapping.",
+      "rules": [
+        {
+          "rule_id": "ISO-001",
+          "trigger": "residual_risk_level in [HIGH, CRITICAL] OR sector in [finance, healthcare, legal]",
+          "clauses": [
+            "Clause 4",
+            "Clause 5",
+            "Clause 6",
+            "Clause 8"
+          ],
+          "obligations": [
+            "Clause 4.1 — Internal/external context analysis",
+            "Clause 5.1 — Board AI governance commitment",
+            "Clause 6.1 — AI risk assessment and treatment plan",
+            "Clause 6.1.2 — Controls for high-risk AI scenarios",
+            "Clause 8.2 — AI system lifecycle process defined",
+            "Clause 8.4 — Third-party AI supplier assessment"
+          ]
+        },
+        {
+          "rule_id": "ISO-002",
+          "trigger": "bias_testing_performed=false AND harm_types contains discrimination",
+          "clauses": [
+            "Clause 8",
+            "Annex A"
+          ],
+          "obligations": [
+            "Clause 8.3 — Training data quality controls required",
+            "Annex A.6 — Responsible AI use controls required"
+          ]
+        }
+      ]
+    },
+    "sector_specific": {
+      "description": "Sector regulators. Source: BaFin Dec 2025, EBA Nov 2025, MAS Nov 2025.",
+      "rules": [
+        {
+          "rule_id": "SECTOR-FIN-001",
+          "trigger": "sector=finance AND ai_system_source in [third_party_api, saas_product]",
+          "regulators": [
+            "BaFin",
+            "EBA",
+            "ESMA"
+          ],
+          "obligations": [
+            "BaFin Dec 2025 — AI as ICT risk under DORA",
+            "BaFin — Management-approved AI strategy required",
+            "BaFin — Three lines of defence for AI governance",
+            "EBA — AI inventory with approved scope of use",
+            "DORA — Third-party ICT risk management for AI providers",
+            "DORA — Contractual provisions: audit rights, exit strategy"
+          ]
+        },
+        {
+          "rule_id": "SECTOR-FIN-002",
+          "trigger": "use_case_type in [credit_scoring, fraud_detection] OR data_sensitivity contains financial_data",
+          "regulators": [
+            "EBA",
+            "ECB",
+            "MAS"
+          ],
+          "obligations": [
+            "EBA — Credit scoring: high-risk under EU AI Act Annex III",
+            "MAS AIRG Nov 2025 — Risk materiality: impact x complexity x reliance",
+            "MAS — AI inventory completeness required",
+            "MAS — Proportionate controls based on AI risk profile"
+          ]
+        },
+        {
+          "rule_id": "SECTOR-HEALTH-001",
+          "trigger": "sector=healthcare AND data_sensitivity contains health_data",
+          "regulators": [
+            "EU AI Office",
+            "MDR"
+          ],
+          "obligations": [
+            "EU AI Act Annex III — Medical AI is high-risk by default",
+            "MDR compliance check required for medical devices",
+            "GDPR Art. 9 — Special category health data lawful basis",
+            "FRIA mandatory — patients are vulnerable group"
+          ]
+        }
+      ]
+    }
+  },
+  "framework_registry": {
+    "eu_ai_act": {
+      "enforcement_date": "2026-08-02",
+      "max_penalty": "7% global annual turnover",
+      "update_source": "https://digital-strategy.ec.europa.eu/ai-act"
+    },
+    "enisa": {
+      "update_frequency": "annual_october",
+      "url": "https://www.enisa.europa.eu/publications",
+      "role": "Feeds threat_prevalence_score in likelihood engine"
+    },
+    "bafin": {
+      "guidance_date": "2025-12-18",
+      "sector": "finance",
+      "key_position": "AI classified as ICT risk under DORA"
+    },
+    "mas_airg": {
+      "published": "2025-11-13",
+      "project_mindforge_completed": "2026-03-20",
+      "sector": "finance_singapore"
+    },
+    "nist_ai_rmf": {
+      "type": "voluntary",
+      "version": "1.0"
+    },
+    "iso_42001": {
+      "published": "2023",
+      "auditor_standard": "ISO/IEC 42006:2025"
+    },
+    "owasp_llm": {
+      "version": "2025",
+      "type": "technical_standard"
+    }
+  },
+  "methodology_note": "Regulatory mapping INTERPRETS risk scores — it does NOT produce them. Residual risk is calculated first by risk_engine_schema. Then this mapping identifies which obligations are triggered. Framework weights do not exist in this system — risk drives everything."
+}
