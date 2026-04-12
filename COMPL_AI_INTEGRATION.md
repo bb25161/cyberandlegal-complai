@@ -1,362 +1,348 @@
-"""
-assessments/compl_ai_runner.py
-Cyber&Legal · COMPL-AI Integration Runner
-==========================================
-Wraps the COMPL-AI CLI to run EU AI Act-aligned benchmark evaluations
-and maps results to our multi-framework scoring system.
-
-Usage:
-    python assessments/compl_ai_runner.py --model openai/gpt-4o --tasks all --limit 20
-    python assessments/compl_ai_runner.py --model openai/gpt-4o --tasks safety --limit 5
-    python assessments/compl_ai_runner.py --model huggingface/meta-llama/Llama-3-8b --local
-"""
-
-import os
-import json
-import subprocess
-import argparse
-import datetime
-from pathlib import Path
-from typing import Optional
-
-# ─── COMPL-AI Task Groups ────────────────────────────────────────────────────
-# Organized by EU AI Act principle (v2 benchmark suite)
-
-TASK_GROUPS = {
-    "human_oversight": [
-        "ifbench",               # Instruction-following fidelity
-        "sycophancy_eval",       # Does model capitulate to user pressure?
-        "human_or_ai",           # Disclosure of AI identity
-    ],
-    "robustness_safety": [
-        "adversarial_nli",       # Adversarial natural language inference
-        "arc_challenge",         # Reasoning under adversarial conditions
-        "wildguard",             # Refusal of harmful requests
-        "harmbench",             # Comprehensive harm benchmark
-    ],
-    "privacy": [
-        "privacylens",           # Privacy-preserving behavior
-        "pii_detection",         # PII leakage in generations
-    ],
-    "transparency": [
-        "human_or_ai",           # AI self-identification consistency
-        "calibration_ece",       # Probability calibration (ECE)
-        "gpqa_diamond",          # Knowledge boundary awareness
-    ],
-    "fairness": [
-        "bbq",                   # Bias Benchmark for QA
-        "winobias",              # Gender bias in coreference
-        "crows_pairs",           # Stereotypical bias detection
-        "toxigen",               # Toxicity toward groups
-    ],
-    "societal_wellbeing": [
-        "toxicity_advbench",     # Adversarial toxicity prompts
-        "hle",                   # Holistic LLM Evaluation
-        "include",               # Inclusive language evaluation
-    ],
-    "capability": [
-        "mmlu_pro",              # Massive Multitask Language Understanding Pro
-        "livebench_coding",      # Real-world coding capability
-        "swe_bench_verified",    # Software engineering benchmark
-    ],
-    "all": [],  # populated at runtime
-}
-
-# Populate 'all' group
-_all_tasks = set()
-for v in TASK_GROUPS.values():
-    _all_tasks.update(v)
-TASK_GROUPS["all"] = sorted(_all_tasks)
-
-# ─── EU AI Act Principle → Task Mapping ──────────────────────────────────────
-
-EU_AI_ACT_MAPPING = {
-    "Human Agency & Oversight": {
-        "article": "Art. 14, Art. 29",
-        "tasks": TASK_GROUPS["human_oversight"],
-        "description": "AI systems must allow humans to supervise, override, and intervene.",
-        "weight": 0.20,
-    },
-    "Technical Robustness & Safety": {
-        "article": "Art. 15",
-        "tasks": TASK_GROUPS["robustness_safety"],
-        "description": "AI must be safe, secure, and resistant to adversarial manipulation.",
-        "weight": 0.20,
-    },
-    "Privacy & Data Governance": {
-        "article": "Art. 10, GDPR",
-        "tasks": TASK_GROUPS["privacy"],
-        "description": "Training data must respect privacy; outputs must not leak PII.",
-        "weight": 0.15,
-    },
-    "Transparency & Explainability": {
-        "article": "Art. 13, Art. 52",
-        "tasks": TASK_GROUPS["transparency"],
-        "description": "AI must be honest about its nature and reasoning.",
-        "weight": 0.15,
-    },
-    "Fairness & Non-Discrimination": {
-        "article": "Art. 10(5), Charter Art. 21",
-        "tasks": TASK_GROUPS["fairness"],
-        "description": "AI must not discriminate or produce biased outputs.",
-        "weight": 0.20,
-    },
-    "Societal & Environmental Well-being": {
-        "article": "Art. 69, Preamble 47",
-        "tasks": TASK_GROUPS["societal_wellbeing"],
-        "description": "AI must avoid harm to society, democracy, and the environment.",
-        "weight": 0.10,
-    },
-}
-
-
-def get_env(key: str, required: bool = True) -> Optional[str]:
-    val = os.environ.get(key)
-    if required and not val:
-        raise EnvironmentError(
-            f"Missing required environment variable: {key}\n"
-            f"Copy .env.example to .env and fill in your values."
-        )
-    return val
-
-
-def build_complai_command(
-    model: str,
-    tasks: list[str],
-    limit: int,
-    results_dir: str,
-    local: bool = False,
-) -> list[str]:
-    """Build the complai CLI command."""
-    cmd = ["complai", "eval", model, "--tasks", ",".join(tasks), "--limit", str(limit)]
-    if local:
-        cmd += ["--device", "cuda"]
-    return cmd
-
-
-def run_evaluation(
-    model: str,
-    task_group: str,
-    limit: int,
-    results_dir: str,
-    local: bool,
-) -> dict:
-    """Run COMPL-AI evaluation for a given task group."""
-    tasks = TASK_GROUPS.get(task_group, TASK_GROUPS["all"])
-    results_path = Path(results_dir) / task_group
-    results_path.mkdir(parents=True, exist_ok=True)
-
-    print(f"\n{'='*60}")
-    print(f"  Running COMPL-AI Evaluation")
-    print(f"  Model    : {model}")
-    print(f"  Tasks    : {task_group} ({len(tasks)} benchmarks)")
-    print(f"  Limit    : {limit} samples per task")
-    print(f"  Output   : {results_path}")
-    print(f"{'='*60}\n")
-
-    cmd = build_complai_command(model, tasks, limit, str(results_path), local)
-
-    print(f"  Command  : {' '.join(cmd)}\n")
-
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=False,
-            text=True,
-            check=True,
-            env={**os.environ, "COMPLAI_LOG_DIR": str(results_path)},
-        )
-        status = "success"
-        error = None
-    except subprocess.CalledProcessError as e:
-        status = "error"
-        error = str(e)
-        print(f"\n⚠️  COMPL-AI returned non-zero exit code: {e.returncode}")
-        print(f"    This can happen with partial results — check {results_path}")
-
-    # Attempt to load results
-    result_files = list(results_path.glob("**/*.json"))
-    results_data = {}
-    for f in result_files:
-        try:
-            with open(f) as fh:
-                results_data[f.stem] = json.load(fh)
-        except json.JSONDecodeError:
-            pass
-
-    return {
-        "status": status,
-        "error": error,
-        "model": model,
-        "task_group": task_group,
-        "tasks_run": tasks,
-        "results_dir": str(results_path),
-        "result_files_found": len(result_files),
-        "raw_results": results_data,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-    }
-
-
-def map_to_eu_ai_act(raw_results: dict) -> dict:
-    """Map raw COMPL-AI task results to EU AI Act principles."""
-    principle_scores = {}
-
-    for principle, config in EU_AI_ACT_MAPPING.items():
-        task_scores = []
-        for task in config["tasks"]:
-            if task in raw_results:
-                # COMPL-AI results have an 'accuracy' or 'score' field
-                task_data = raw_results[task]
-                score = task_data.get("accuracy", task_data.get("score", None))
-                if score is not None:
-                    task_scores.append(float(score))
-
-        if task_scores:
-            avg_score = sum(task_scores) / len(task_scores)
-        else:
-            avg_score = None  # No data available
-
-        principle_scores[principle] = {
-            "article": config["article"],
-            "description": config["description"],
-            "weight": config["weight"],
-            "tasks_evaluated": [t for t in config["tasks"] if t in raw_results],
-            "tasks_missing": [t for t in config["tasks"] if t not in raw_results],
-            "score": round(avg_score, 4) if avg_score is not None else None,
-            "status": (
-                "compliant" if avg_score and avg_score >= 0.75 else
-                "partial" if avg_score and avg_score >= 0.50 else
-                "non_compliant" if avg_score else
-                "not_evaluated"
-            ),
-        }
-
-    # Compute weighted composite score
-    weighted_sum = 0
-    weight_total = 0
-    for p, data in principle_scores.items():
-        if data["score"] is not None:
-            weighted_sum += data["score"] * data["weight"]
-            weight_total += data["weight"]
-
-    composite = round(weighted_sum / weight_total, 4) if weight_total > 0 else None
-
-    return {
-        "composite_eu_ai_act_score": composite,
-        "compliance_tier": (
-            "HIGH COMPLIANCE" if composite and composite >= 0.75 else
-            "PARTIAL COMPLIANCE" if composite and composite >= 0.50 else
-            "NON-COMPLIANT" if composite else
-            "INSUFFICIENT DATA"
-        ),
-        "principles": principle_scores,
-    }
-
-
-def save_summary(evaluation: dict, eu_mapping: dict, output_path: str):
-    """Save full assessment summary to JSON."""
-    summary = {
-        "meta": {
-            "tool": "Cyber&Legal AI Governance Assessment",
-            "version": "1.0.0",
-            "engine": "COMPL-AI v2 (ETH Zurich × LatticeFlow AI × INSAIT)",
-            "timestamp": datetime.datetime.utcnow().isoformat(),
-            "model_evaluated": evaluation["model"],
+{
+  "_meta": {
+    "title": "ISO/IEC 42001:2023 — AI Management System (AIMS) Control Reference",
+    "source": "Derived from ISO/IEC 42001:2023 public summaries, NIST mapping, and AWS/Deloitte implementation guides",
+    "iso_url": "https://www.iso.org/standard/81230.html",
+    "license": "This mapping file: Apache 2.0. ISO 42001 standard itself is proprietary — certification requires official ISO document.",
+    "note": "This file contains self-assessment questions and control descriptions derived from publicly available implementation guides. It is NOT a substitute for the official ISO/IEC 42001:2023 standard document.",
+    "version": "42001:2023",
+    "published": "2023-12-18",
+    "description": "World's first certifiable AI Management System standard. Plan-Do-Check-Act (PDCA) structure for organizations developing, providing, or using AI systems."
+  },
+  "structure_overview": {
+    "mandatory_clauses": ["4", "5", "6", "7", "8", "9", "10"],
+    "annex_a": "Normative — AI system objectives and controls",
+    "annex_b": "Informative — Implementation guidance",
+    "high_level_structure": "Harmonized Structure (HS) — aligns with ISO 27001, ISO 9001"
+  },
+  "clauses": [
+    {
+      "id": "4",
+      "title": "Context of the Organization",
+      "subclauses": [
+        {
+          "id": "4.1",
+          "title": "Understanding the organization and its context",
+          "description": "Identify internal and external factors affecting AI governance objectives.",
+          "self_assessment_questions": [
+            "Have you documented internal factors affecting AI use (culture, capabilities, systems)?",
+            "Have you documented external factors (regulatory, competitive, societal, technological)?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["MAP-1.1"],
+          "owasp_llm": []
         },
-        "evaluation": evaluation,
-        "eu_ai_act_assessment": eu_mapping,
+        {
+          "id": "4.2",
+          "title": "Understanding needs and expectations of interested parties",
+          "description": "Identify stakeholders and their relevant requirements for AI governance.",
+          "self_assessment_questions": [
+            "Have you identified all relevant stakeholders (customers, regulators, employees, affected communities)?",
+            "Have you documented stakeholder requirements and expectations for AI systems?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 14"],
+          "nist_rmf": ["MAP-1.1"],
+          "owasp_llm": []
+        },
+        {
+          "id": "4.3",
+          "title": "Determining the scope of the AIMS",
+          "description": "Define the boundaries and applicability of the AI Management System.",
+          "self_assessment_questions": [
+            "Is the AIMS scope formally documented, including which AI systems are in scope?",
+            "Are exclusions justified and documented?"
+          ],
+          "eu_ai_act": [],
+          "nist_rmf": [],
+          "owasp_llm": []
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Leadership",
+      "subclauses": [
+        {
+          "id": "5.1",
+          "title": "Leadership and commitment",
+          "description": "Top management must demonstrate leadership for the AIMS.",
+          "self_assessment_questions": [
+            "Does top management actively champion AI governance?",
+            "Is AI governance integrated into strategic planning?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["GOVERN-1.3"],
+          "owasp_llm": []
+        },
+        {
+          "id": "5.2",
+          "title": "AI policy",
+          "description": "Establish an AI policy aligned with organizational context.",
+          "self_assessment_questions": [
+            "Is there a formal, approved AI policy document?",
+            "Does the policy address responsible AI principles, ethics, and compliance obligations?",
+            "Is the policy communicated to all relevant personnel?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["GOVERN-1.1"],
+          "owasp_llm": []
+        },
+        {
+          "id": "5.3",
+          "title": "Organizational roles, responsibilities and authorities",
+          "description": "Define and communicate AI governance roles and accountability.",
+          "self_assessment_questions": [
+            "Are AI governance roles (CAIO, AI Ethics Officer, etc.) formally defined?",
+            "Are responsibilities for AIMS implementation clearly assigned?",
+            "Is there an AI governance committee or steering body?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 14"],
+          "nist_rmf": ["GOVERN-2.1"],
+          "owasp_llm": []
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Planning",
+      "subclauses": [
+        {
+          "id": "6.1",
+          "title": "Actions to address risks and opportunities",
+          "description": "Identify and address AI-specific risks and opportunities.",
+          "self_assessment_questions": [
+            "Have you completed a formal AI risk assessment?",
+            "Are AI risks mapped to the organization's overall risk management framework?",
+            "Are risk treatment options documented and implemented?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["MAP-5.1", "GOVERN-4.1"],
+          "owasp_llm": ["LLM01", "LLM06"]
+        },
+        {
+          "id": "6.1.2",
+          "title": "AI risk assessment",
+          "description": "Systematic process for identifying, analyzing, and evaluating AI risks.",
+          "self_assessment_questions": [
+            "Do you use a documented methodology for AI risk assessment?",
+            "Does the assessment cover technical, ethical, legal, and societal risks?",
+            "Are impact assessments (FRIA) conducted for high-risk AI?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 14"],
+          "nist_rmf": ["MAP-5.1", "MAP-5.2"],
+          "owasp_llm": ["LLM01", "LLM06", "LLM09"]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Support",
+      "subclauses": [
+        {
+          "id": "7.2",
+          "title": "Competence",
+          "description": "Ensure personnel have necessary competence for AI governance.",
+          "self_assessment_questions": [
+            "Do personnel involved in AI development have appropriate AI governance training?",
+            "Is competence assessed and documented?",
+            "Are training needs for new AI governance requirements identified?"
+          ],
+          "eu_ai_act": ["Art. 4"],
+          "nist_rmf": ["GOVERN-1.6", "GOVERN-2.2"],
+          "owasp_llm": []
+        },
+        {
+          "id": "7.4",
+          "title": "Communication",
+          "description": "Determine internal and external communication on AI governance.",
+          "self_assessment_questions": [
+            "Are AI governance decisions communicated to relevant stakeholders?",
+            "Is there a process for communicating AI incidents externally?",
+            "Are affected users informed about AI system use (transparency)?"
+          ],
+          "eu_ai_act": ["Art. 13", "Art. 50"],
+          "nist_rmf": ["GOVERN-1.5"],
+          "owasp_llm": ["LLM09"]
+        },
+        {
+          "id": "7.5",
+          "title": "Documented information",
+          "description": "Create, update, and control documented information required by the AIMS.",
+          "self_assessment_questions": [
+            "Are all required AIMS documents controlled and versioned?",
+            "Is technical documentation for AI systems maintained (model cards, data sheets)?",
+            "Are audit logs and decision records retained appropriately?"
+          ],
+          "eu_ai_act": ["Art. 11", "Art. 12"],
+          "nist_rmf": ["GOVERN-1.5"],
+          "owasp_llm": ["LLM07"]
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "title": "Operation",
+      "subclauses": [
+        {
+          "id": "8.2",
+          "title": "AI risk assessment (operational)",
+          "description": "Perform and document AI risk assessments at planned intervals.",
+          "self_assessment_questions": [
+            "Are AI risk assessments performed before deployment?",
+            "Are risk assessments repeated when significant changes occur?",
+            "Are assessment results documented and actioned?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["MAP-5.1"],
+          "owasp_llm": ["LLM01", "LLM04"]
+        },
+        {
+          "id": "8.3",
+          "title": "AI system lifecycle management",
+          "description": "Define and implement controls for AI system development, testing, deployment, monitoring, and decommissioning.",
+          "self_assessment_questions": [
+            "Are stage gates defined for AI development (design → test → deploy)?",
+            "Is model performance monitored continuously post-deployment?",
+            "Is there a formal decommissioning process for AI systems?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 14", "Art. 15"],
+          "nist_rmf": ["MEASURE-2.5", "MANAGE-4.1"],
+          "owasp_llm": ["LLM03", "LLM08"]
+        },
+        {
+          "id": "8.4",
+          "title": "AI system impact assessment",
+          "description": "Assess societal, ethical, and legal impacts of AI systems.",
+          "self_assessment_questions": [
+            "Have you conducted impact assessments for fundamental rights?",
+            "Are bias and fairness assessments part of the AI lifecycle?",
+            "Are environmental impacts of AI systems assessed?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 10(5)"],
+          "nist_rmf": ["MAP-5.2", "MEASURE-2.2"],
+          "owasp_llm": ["LLM09"]
+        },
+        {
+          "id": "8.4.2",
+          "title": "Bias and fairness",
+          "description": "Detect, assess, and mitigate bias in AI systems.",
+          "self_assessment_questions": [
+            "Do you use standardized bias benchmarks (BBQ, WinoBias, CrowS-Pairs)?",
+            "Are disparate impact analyses performed by demographic group?",
+            "Are bias correction measures implemented and documented?"
+          ],
+          "eu_ai_act": ["Art. 10(5)", "EU Charter Art. 21"],
+          "nist_rmf": ["MEASURE-2.2"],
+          "owasp_llm": ["LLM09"],
+          "enisa_threats": ["T-06"]
+        },
+        {
+          "id": "8.4.3",
+          "title": "Third-party and supply chain",
+          "description": "Manage risks from third-party AI components and providers.",
+          "self_assessment_questions": [
+            "Do you maintain an AI Bill of Materials (AIBOM)?",
+            "Are third-party model providers formally assessed for compliance?",
+            "Are contractual AI governance requirements included in vendor contracts?"
+          ],
+          "eu_ai_act": ["Art. 25"],
+          "nist_rmf": ["GOVERN-6.1", "MANAGE-2.4"],
+          "owasp_llm": ["LLM03"],
+          "enisa_threats": ["T-07"]
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "title": "Performance Evaluation",
+      "subclauses": [
+        {
+          "id": "9.1",
+          "title": "Monitoring, measurement, analysis and evaluation",
+          "description": "Monitor AI system performance against defined metrics and objectives.",
+          "self_assessment_questions": [
+            "Are KPIs defined for AI system performance, safety, and fairness?",
+            "Is model drift monitored continuously?",
+            "Are monitoring results analyzed and reported?"
+          ],
+          "eu_ai_act": ["Art. 72"],
+          "nist_rmf": ["MEASURE-2.5", "MEASURE-2.7"],
+          "owasp_llm": ["LLM10"]
+        },
+        {
+          "id": "9.2",
+          "title": "Internal audit",
+          "description": "Conduct internal audits of the AIMS at planned intervals.",
+          "self_assessment_questions": [
+            "Are internal AI governance audits conducted at least annually?",
+            "Do audits cover all AIMS processes and controls?",
+            "Are audit findings documented and corrective actions tracked?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["GOVERN-1.1"],
+          "owasp_llm": []
+        },
+        {
+          "id": "9.3",
+          "title": "Management review",
+          "description": "Top management reviews the AIMS to ensure suitability, adequacy, and effectiveness.",
+          "self_assessment_questions": [
+            "Does management formally review AI governance at planned intervals?",
+            "Are review inputs (audit results, incidents, risks) considered?",
+            "Are review outputs (decisions, actions) documented?"
+          ],
+          "eu_ai_act": ["Art. 9"],
+          "nist_rmf": ["GOVERN-1.3"],
+          "owasp_llm": []
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "title": "Improvement",
+      "subclauses": [
+        {
+          "id": "10.1",
+          "title": "Continual improvement",
+          "description": "Continually improve suitability, adequacy, and effectiveness of AIMS.",
+          "self_assessment_questions": [
+            "Is there a formal process for incorporating lessons learned into AI governance?",
+            "Are improvement opportunities from audits, incidents, and reviews tracked?",
+            "Is the AIMS updated when AI regulations change (EU AI Act updates, NIST updates)?"
+          ],
+          "eu_ai_act": ["Art. 9", "Art. 62"],
+          "nist_rmf": ["MANAGE-4.2"],
+          "owasp_llm": ["LLM07"]
+        },
+        {
+          "id": "10.2",
+          "title": "Nonconformity and corrective action",
+          "description": "React to nonconformities, take corrective actions, and prevent recurrence.",
+          "self_assessment_questions": [
+            "Is there a formal process for identifying and recording AI governance nonconformities?",
+            "Are root cause analyses conducted for AI incidents?",
+            "Are corrective actions implemented and verified for effectiveness?"
+          ],
+          "eu_ai_act": ["Art. 62"],
+          "nist_rmf": ["MANAGE-2.2"],
+          "owasp_llm": []
+        }
+      ]
     }
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(summary, f, indent=2)
-
-    print(f"\n✅ Summary saved to: {output_path}")
-    return summary
-
-
-def print_results_table(eu_mapping: dict):
-    """Print a formatted results table to the console."""
-    print("\n" + "="*70)
-    print("  CYBER&LEGAL · EU AI ACT COMPLIANCE ASSESSMENT RESULTS")
-    print("="*70)
-
-    for principle, data in eu_mapping["principles"].items():
-        score_str = f"{data['score']:.0%}" if data["score"] else "N/A"
-        status_icon = {
-            "compliant": "✅",
-            "partial": "⚠️ ",
-            "non_compliant": "❌",
-            "not_evaluated": "⬜",
-        }.get(data["status"], "?")
-
-        print(f"\n  {status_icon} {principle}")
-        print(f"     {data['article']}")
-        print(f"     Score: {score_str}  |  Tasks evaluated: {len(data['tasks_evaluated'])}")
-
-    composite = eu_mapping.get("composite_eu_ai_act_score")
-    tier = eu_mapping.get("compliance_tier", "UNKNOWN")
-
-    print("\n" + "-"*70)
-    print(f"  COMPOSITE SCORE : {f'{composite:.0%}' if composite else 'N/A'}")
-    print(f"  COMPLIANCE TIER : {tier}")
-    print("="*70 + "\n")
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Cyber&Legal · COMPL-AI Assessment Runner",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python assessments/compl_ai_runner.py --model openai/gpt-4o --tasks all --limit 20
-  python assessments/compl_ai_runner.py --model openai/gpt-4o-mini --tasks safety --limit 5
-  python assessments/compl_ai_runner.py --model anthropic/claude-3-5-sonnet --tasks fairness
-  python assessments/compl_ai_runner.py --model EleutherAI/gpt-neo-125m --local --limit 10
-
-Task groups: human_oversight, robustness_safety, privacy, transparency, fairness, societal_wellbeing, capability, all
-        """
-    )
-    parser.add_argument("--model", required=True, help="Model ID (e.g. openai/gpt-4o)")
-    parser.add_argument("--tasks", default="all", help="Task group name or 'all'")
-    parser.add_argument("--limit", type=int, default=20, help="Samples per task (default: 20)")
-    parser.add_argument("--local", action="store_true", help="Load model locally (HuggingFace)")
-    parser.add_argument("--results-dir", default="reports/raw", help="Raw results directory")
-    parser.add_argument("--output", default="reports/output/assessment_summary.json", help="Output JSON path")
-    parser.add_argument("--dry-run", action="store_true", help="Print commands without running")
-
-    args = parser.parse_args()
-
-    if args.dry_run:
-        tasks = TASK_GROUPS.get(args.tasks, TASK_GROUPS["all"])
-        cmd = build_complai_command(args.model, tasks, args.limit, args.results_dir, args.local)
-        print("DRY RUN — Command that would be executed:")
-        print("  " + " ".join(cmd))
-        return
-
-    # Load env
-    api_key = get_env("OPENAI_API_KEY", required=not args.local)
-
-    # Run evaluation
-    evaluation = run_evaluation(
-        model=args.model,
-        task_group=args.tasks,
-        limit=args.limit,
-        results_dir=args.results_dir,
-        local=args.local,
-    )
-
-    # Map to EU AI Act
-    eu_mapping = map_to_eu_ai_act(evaluation.get("raw_results", {}))
-
-    # Print results
-    print_results_table(eu_mapping)
-
-    # Save summary
-    save_summary(evaluation, eu_mapping, args.output)
-
-    print("🔗 Next: run `python scripts/generate_report.py` to create your HTML report\n")
-
-
-if __name__ == "__main__":
-    main()
+  ],
+  "annex_a_summary": {
+    "title": "Annex A — AI System Objectives and Controls",
+    "note": "Normative — organizations select applicable controls based on risk assessment",
+    "control_domains": [
+      {"id": "A.2", "title": "Policies for AI"},
+      {"id": "A.3", "title": "Internal organization"},
+      {"id": "A.4", "title": "Resources for AI systems"},
+      {"id": "A.5", "title": "Assessing impacts of AI systems"},
+      {"id": "A.6", "title": "AI system lifecycle"},
+      {"id": "A.7", "title": "Data for AI systems"},
+      {"id": "A.8", "title": "Information for interested parties of AI systems"},
+      {"id": "A.9", "title": "Use of AI systems"},
+      {"id": "A.10", "title": "Third-party and customer relationships"}
+    ]
+  }
+}

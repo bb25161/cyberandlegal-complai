@@ -1,334 +1,318 @@
-{
-  "_meta": {
-    "title": "OWASP Top 10 for Large Language Model Applications",
-    "edition": "2025",
-    "source": "OWASP Foundation",
-    "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
-    "license": "CC BY-SA 4.0",
-    "attribution": "OWASP Foundation — Creative Commons Attribution-ShareAlike 4.0",
-    "version": "2.0 (2025)",
-    "description": "The definitive ranked list of the most critical security and safety vulnerabilities in LLM applications. Community-driven, practitioner-validated."
-  },
-  "vulnerabilities": [
-    {
-      "id": "LLM01",
-      "rank": 1,
-      "title": "Prompt Injection",
-      "severity": "CRITICAL",
-      "description": "Prompt injection vulnerabilities occur when user prompts alter the LLM's behavior in unintended ways. Direct injections override system prompts; indirect injections manipulate inputs from external sources.",
-      "attack_vectors": [
-        "Direct system prompt override",
-        "Jailbreak role-play instructions",
-        "Indirect injection via retrieved documents",
-        "Multi-modal prompt injection (images, audio)",
-        "Context window manipulation"
-      ],
-      "impacts": [
-        "Bypass of safety guardrails",
-        "Data exfiltration via crafted outputs",
-        "Unauthorized action execution in agentic systems",
-        "Impersonation of trusted entities"
-      ],
-      "mitigations": [
-        "Privilege separation between system and user contexts",
-        "Input validation and sanitization pipelines",
-        "Output filtering with content classifiers",
-        "Regular red-teaming and adversarial testing",
-        "Human-in-the-loop for high-risk actions"
-      ],
-      "nist_rmf": ["MEASURE-2.3", "MEASURE-2.5", "MANAGE-2.2"],
-      "eu_ai_act": ["Art. 15"],
-      "enisa_threats": ["T-05"],
-      "compl_ai_benchmarks": ["harmbench", "wildguard", "strong_reject"],
-      "cwe": ["CWE-77", "CWE-89"]
-    },
-    {
-      "id": "LLM02",
-      "rank": 2,
-      "title": "Sensitive Information Disclosure",
-      "severity": "HIGH",
-      "description": "LLMs may inadvertently reveal confidential data, PII, proprietary algorithms, or training data through their responses.",
-      "attack_vectors": [
-        "Training data extraction attacks",
-        "Membership inference attacks",
-        "System prompt extraction",
-        "PII reconstruction from partial prompts",
-        "Model inversion attacks"
-      ],
-      "impacts": [
-        "GDPR/privacy regulation violations",
-        "Exposure of trade secrets",
-        "Identity theft via PII leakage",
-        "Competitive intelligence loss"
-      ],
-      "mitigations": [
-        "Output filtering for PII patterns",
-        "Differential privacy in training",
-        "Data minimization in RAG pipelines",
-        "Access controls on sensitive document retrieval",
-        "Regular PII leakage testing"
-      ],
-      "nist_rmf": ["MAP-3.5", "MEASURE-2.6", "GOVERN-5.1"],
-      "eu_ai_act": ["Art. 10", "GDPR Art. 22"],
-      "enisa_threats": ["T-04"],
-      "compl_ai_benchmarks": ["privacylens", "pii_detection"],
-      "cwe": ["CWE-200", "CWE-359"]
-    },
-    {
-      "id": "LLM03",
-      "rank": 3,
-      "title": "Supply Chain Vulnerabilities",
-      "severity": "HIGH",
-      "description": "LLM supply chains are susceptible to vulnerabilities through third-party datasets, pre-trained models, plugins, and deployment infrastructure.",
-      "attack_vectors": [
-        "Poisoned pre-trained model weights",
-        "Malicious fine-tuning datasets",
-        "Compromised model hosting platforms",
-        "Backdoored third-party plugins",
-        "Vulnerable ML framework dependencies"
-      ],
-      "impacts": [
-        "Backdoor activation via trigger phrases",
-        "Silent model behavior modification",
-        "Intellectual property theft",
-        "Supply chain-wide compromise"
-      ],
-      "mitigations": [
-        "AI Bill of Materials (AIBOM) maintenance",
-        "Cryptographic signing of model artifacts",
-        "Third-party vendor risk assessments",
-        "Model scanning before deployment (e.g., Protect AI Guardian)",
-        "Dependency vulnerability tracking"
-      ],
-      "nist_rmf": ["GOVERN-6.1", "MAP-5.1", "MANAGE-2.4"],
-      "eu_ai_act": ["Art. 25"],
-      "enisa_threats": ["T-07"],
-      "compl_ai_benchmarks": [],
-      "cwe": ["CWE-494", "CWE-829"]
-    },
-    {
-      "id": "LLM04",
-      "rank": 4,
-      "title": "Data and Model Poisoning",
-      "severity": "CRITICAL",
-      "description": "Adversaries manipulate training or fine-tuning data to embed backdoors, degrade performance, or bias model behavior.",
-      "attack_vectors": [
-        "Backdoor trigger embedding in training data",
-        "Label flipping attacks",
-        "Byzantine attacks in federated learning",
-        "Clean-label poisoning",
-        "Instruction poisoning in RLHF"
-      ],
-      "impacts": [
-        "Hidden backdoor activation",
-        "Targeted misclassification",
-        "Biased outputs favoring attacker",
-        "Degraded safety training"
-      ],
-      "mitigations": [
-        "Data provenance and supply chain verification",
-        "Statistical anomaly detection in datasets",
-        "Differential privacy in training",
-        "Robust aggregation methods",
-        "Pre-training data audits"
-      ],
-      "nist_rmf": ["MAP-3.5", "MEASURE-2.7", "GOVERN-6.1"],
-      "eu_ai_act": ["Art. 10"],
-      "enisa_threats": ["T-02"],
-      "compl_ai_benchmarks": [],
-      "cwe": ["CWE-915", "CWE-20"]
-    },
-    {
-      "id": "LLM05",
-      "rank": 5,
-      "title": "Improper Output Handling",
-      "severity": "HIGH",
-      "description": "LLM outputs passed without validation to downstream components can enable XSS, SSRF, SQL injection, or remote code execution.",
-      "attack_vectors": [
-        "LLM-generated XSS payloads rendered in browser",
-        "SQL injection via LLM-constructed queries",
-        "SSRF via LLM-generated URLs",
-        "Code injection in automated execution pipelines",
-        "Command injection via shell-executed LLM output"
-      ],
-      "impacts": [
-        "Remote code execution",
-        "Database compromise",
-        "Internal network access (SSRF)",
-        "Cross-site scripting in web apps"
-      ],
-      "mitigations": [
-        "Output encoding and sanitization",
-        "Content Security Policy enforcement",
-        "Sandboxed code execution environments",
-        "Parameterized queries for database operations",
-        "Output schema validation"
-      ],
-      "nist_rmf": ["MEASURE-2.3", "MANAGE-2.2"],
-      "eu_ai_act": ["Art. 15"],
-      "enisa_threats": ["T-01", "T-05"],
-      "compl_ai_benchmarks": ["harmbench"],
-      "cwe": ["CWE-79", "CWE-89", "CWE-918"]
-    },
-    {
-      "id": "LLM06",
-      "rank": 6,
-      "title": "Excessive Agency",
-      "severity": "CRITICAL",
-      "description": "LLM agents given excessive permissions, autonomy, or capabilities may take harmful actions beyond intended scope.",
-      "attack_vectors": [
-        "Prompt injection triggering unauthorized tool calls",
-        "Scope creep through vague task instructions",
-        "Chained tool use enabling privilege escalation",
-        "Autonomous decision-making without oversight"
-      ],
-      "impacts": [
-        "Unintended data deletion or modification",
-        "Financial transactions without authorization",
-        "Mass communication sent without approval",
-        "Critical system changes without verification"
-      ],
-      "mitigations": [
-        "Principle of least privilege for agent tool access",
-        "Human-in-the-loop confirmation for high-impact actions",
-        "Explicit allow-lists for agent capabilities",
-        "Action logging and audit trails",
-        "Rate limiting on agent tool invocations"
-      ],
-      "nist_rmf": ["GOVERN-1.7", "MAP-5.2", "GOVERN-4.1"],
-      "eu_ai_act": ["Art. 14"],
-      "enisa_threats": ["T-11"],
-      "compl_ai_benchmarks": ["instruction_goal_hijacking"],
-      "cwe": ["CWE-732", "CWE-284"]
-    },
-    {
-      "id": "LLM07",
-      "rank": 7,
-      "title": "System Prompt Leakage",
-      "severity": "HIGH",
-      "description": "System prompts containing confidential instructions, business logic, or security controls are extracted by adversaries.",
-      "attack_vectors": [
-        "Direct extraction requests",
-        "Encoding tricks (Base64, Caesar cipher requests)",
-        "Acrostic or steganographic extraction",
-        "Iterative probing with partial confirmations",
-        "Multi-turn conversation manipulation"
-      ],
-      "impacts": [
-        "Exposure of proprietary business logic",
-        "Safety mechanism bypass via revealed guardrails",
-        "Competitive intelligence leakage",
-        "Enables more targeted prompt injection"
-      ],
-      "mitigations": [
-        "Instruction hierarchy enforcement",
-        "Prompt confidentiality training",
-        "Output monitoring for system prompt patterns",
-        "Minimal information in system prompts",
-        "Regular prompt extraction red-teaming"
-      ],
-      "nist_rmf": ["GOVERN-1.5", "MEASURE-2.6"],
-      "eu_ai_act": ["Art. 13"],
-      "enisa_threats": ["T-03"],
-      "compl_ai_benchmarks": ["mask"],
-      "cwe": ["CWE-200"]
-    },
-    {
-      "id": "LLM08",
-      "rank": 8,
-      "title": "Vector and Embedding Weaknesses",
-      "severity": "HIGH",
-      "description": "Vulnerabilities in RAG pipelines and vector stores through data poisoning, cross-tenant leakage, or retrieval manipulation.",
-      "attack_vectors": [
-        "Poisoned documents in vector stores",
-        "Cross-tenant data leakage in shared embeddings",
-        "Adversarial documents designed to hijack retrieval",
-        "Embedding inversion attacks",
-        "Context window stuffing via retrieved content"
-      ],
-      "impacts": [
-        "Misinformation injection into RAG responses",
-        "Confidential data leakage across tenants",
-        "Retrieval manipulation for targeted attacks",
-        "Model behavior modification via poisoned context"
-      ],
-      "mitigations": [
-        "Input validation before vectorization",
-        "Tenant isolation in vector stores",
-        "Retrieved content filtering",
-        "Provenance tracking for retrieved documents",
-        "Anomaly detection on retrieval patterns"
-      ],
-      "nist_rmf": ["MAP-3.5", "MANAGE-2.4"],
-      "eu_ai_act": ["Art. 10"],
-      "enisa_threats": ["T-02", "T-07"],
-      "compl_ai_benchmarks": [],
-      "cwe": ["CWE-346", "CWE-494"]
-    },
-    {
-      "id": "LLM09",
-      "rank": 9,
-      "title": "Misinformation",
-      "severity": "HIGH",
-      "description": "LLMs generate authoritative-sounding but factually incorrect information, creating legal, reputational, and safety risks.",
-      "attack_vectors": [
-        "Hallucination on factual queries",
-        "False citation generation",
-        "Deepfake content creation",
-        "Targeted disinformation campaigns",
-        "Medical or legal misguidance"
-      ],
-      "impacts": [
-        "Medical harm from incorrect health advice",
-        "Legal liability from false legal guidance",
-        "Reputational damage via fabricated quotes",
-        "Electoral manipulation via synthetic content",
-        "Financial harm from fabricated market data"
-      ],
-      "mitigations": [
-        "Retrieval-augmented generation with verified sources",
-        "Uncertainty quantification and calibration",
-        "Fact-checking pipelines",
-        "Clear AI-generated content labeling (EU AI Act Art. 50)",
-        "Domain-specific output validation"
-      ],
-      "nist_rmf": ["MEASURE-2.2", "GOVERN-1.5"],
-      "eu_ai_act": ["Art. 13", "Art. 50", "Art. 52"],
-      "enisa_threats": ["T-08", "T-09"],
-      "compl_ai_benchmarks": ["simpleqa_verified", "truthfulqa", "calibration_ece"],
-      "cwe": ["CWE-1059"]
-    },
-    {
-      "id": "LLM10",
-      "rank": 10,
-      "title": "Unbounded Consumption",
-      "severity": "MEDIUM",
-      "description": "Adversaries cause excessive resource consumption through repeated complex queries, denial-of-service attacks, or compute exhaustion.",
-      "attack_vectors": [
-        "Sponge attacks with compute-heavy inputs",
-        "Infinite generation requests",
-        "Recursive prompt loops",
-        "Mass parallel API requests (DDoS)",
-        "Context window flooding"
-      ],
-      "impacts": [
-        "Service unavailability (AI-DoS)",
-        "Excessive API costs",
-        "Degraded performance for legitimate users",
-        "Model serving infrastructure overload"
-      ],
-      "mitigations": [
-        "Request rate limiting per user/IP",
-        "Token budget enforcement per request",
-        "Compute budget circuit breakers",
-        "API gateway DDoS protection",
-        "Response length limits"
-      ],
-      "nist_rmf": ["MANAGE-4.1", "MEASURE-2.5"],
-      "eu_ai_act": ["Art. 15"],
-      "enisa_threats": ["T-10"],
-      "compl_ai_benchmarks": [],
-      "cwe": ["CWE-400", "CWE-770"]
-    }
-  ]
-}
+"""
+scripts/generate_report.py
+Cyber&Legal · AI Governance Assessment Report Generator
+========================================================
+Combines results from COMPL-AI, OWASP, NIST, and ENISA assessments
+into a single branded HTML report.
+
+Usage:
+    python scripts/generate_report.py
+    python scripts/generate_report.py --title "Q2 2025 AI Governance Review" --model gpt-4o
+"""
+
+import json
+import argparse
+import datetime
+from pathlib import Path
+
+REPORT_DIR = Path("reports/output")
+
+
+def load_json(path: str) -> dict:
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def score_to_color(score: float) -> str:
+    if score is None:
+        return "#888"
+    if score >= 0.75:
+        return "#10B981"
+    if score >= 0.50:
+        return "#F59E0B"
+    return "#EF4444"
+
+
+def score_to_label(score: float) -> str:
+    if score is None:
+        return "N/A"
+    if score >= 0.75:
+        return "COMPLIANT"
+    if score >= 0.50:
+        return "PARTIAL"
+    return "NON-COMPLIANT"
+
+
+def generate_html_report(
+    complai_data: dict,
+    owasp_data: dict,
+    nist_data: dict,
+    enisa_data: dict,
+    title: str,
+    model: str,
+    output_path: str,
+):
+    now = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+
+    # Extract key metrics
+    eu_score = complai_data.get("eu_ai_act_assessment", {}).get("composite_eu_ai_act_score")
+    eu_tier = complai_data.get("eu_ai_act_assessment", {}).get("compliance_tier", "N/A")
+    eu_principles = complai_data.get("eu_ai_act_assessment", {}).get("principles", {})
+
+    owasp_score = owasp_data.get("overall_score")
+    owasp_status = owasp_data.get("owasp_status", "N/A")
+    owasp_categories = owasp_data.get("categories", {})
+    owasp_critical = owasp_data.get("critical_failures", [])
+
+    nist_score = nist_data.get("scores", {}).get("overall_nist_score")
+    nist_maturity = nist_data.get("scores", {}).get("overall_maturity", "N/A")
+    nist_functions = nist_data.get("scores", {}).get("functions", {})
+
+    enisa_risk = enisa_data.get("overall_residual_risk")
+    enisa_rating = enisa_data.get("risk_rating", "N/A")
+    enisa_critical = enisa_data.get("critical_threats", [])
+    enisa_threats = enisa_data.get("threats", {})
+
+    # Compute composite overall score
+    scores = [s for s in [eu_score, owasp_score, nist_score] if s is not None]
+    if enisa_risk is not None:
+        scores.append(1 - enisa_risk)
+    composite = sum(scores) / len(scores) if scores else None
+
+    def fmt(v):
+        return f"{v:.0%}" if v is not None else "N/A"
+
+    def principle_rows(principles):
+        rows = ""
+        for name, data in principles.items():
+            s = data.get("score")
+            color = score_to_color(s)
+            rows += f"""
+            <tr>
+                <td>{name}</td>
+                <td style="color:#8B9DBB;font-size:12px">{data.get('article','')}</td>
+                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
+                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
+                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:11px">{score_to_label(s)}</span></td>
+            </tr>"""
+        return rows
+
+    def owasp_rows(categories):
+        rows = ""
+        for oid, data in categories.items():
+            s = data.get("pass_rate")
+            color = score_to_color(s)
+            sev = data.get("severity", "")
+            sev_color = {"CRITICAL": "#EF4444", "HIGH": "#F59E0B", "MEDIUM": "#3B82F6"}.get(sev, "#888")
+            rows += f"""
+            <tr>
+                <td style="font-family:monospace;font-size:12px">{oid}</td>
+                <td>{data.get('title','')[:40]}</td>
+                <td><span style="background:{sev_color}22;color:{sev_color};padding:2px 8px;border-radius:99px;font-size:10px">{sev}</span></td>
+                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
+                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
+            </tr>"""
+        return rows
+
+    def enisa_rows(threats):
+        rows = ""
+        for tid, data in threats.items():
+            level = data.get("risk_level", "")
+            color = {"LOW": "#10B981", "MEDIUM": "#F59E0B", "HIGH": "#F97316", "CRITICAL": "#EF4444"}.get(level, "#888")
+            rows += f"""
+            <tr>
+                <td style="font-family:monospace;font-size:12px">{tid}</td>
+                <td>{data.get('title','')[:45]}</td>
+                <td style="color:#8B9DBB;font-size:11px">{data.get('category','')}</td>
+                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:10px">{level}</span></td>
+                <td style="text-align:right;color:{color};font-weight:500">{fmt(data.get('mitigation_score'))}</td>
+            </tr>"""
+        return rows
+
+    def nist_function_rows(functions):
+        rows = ""
+        for fname, data in functions.items():
+            s = data.get("score")
+            color = score_to_color(s)
+            mat = data.get("maturity_level", "")
+            rows += f"""
+            <tr>
+                <td style="font-weight:500">{fname}</td>
+                <td style="color:#8B9DBB;font-size:12px">{data.get('description','')[:50]}</td>
+                <td><div style="background:#1A2540;border-radius:4px;height:8px;width:100%;overflow:hidden"><div style="background:{color};width:{f'{s:.0%}' if s else '0%'};height:100%"></div></div></td>
+                <td style="text-align:right;color:{color};font-weight:500">{fmt(s)}</td>
+                <td><span style="background:{color}22;color:{color};padding:2px 8px;border-radius:99px;font-size:10px">{mat}</span></td>
+            </tr>"""
+        return rows
+
+    composite_color = score_to_color(composite)
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — Cyber&Legal AI Governance Report</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0A0F1E; color: #F0F4FF; line-height: 1.6; }}
+  .page {{ max-width: 1100px; margin: 0 auto; padding: 40px 32px; }}
+  .header {{ border-bottom: 0.5px solid rgba(255,255,255,0.08); padding-bottom: 32px; margin-bottom: 40px; }}
+  .logo {{ font-size: 13px; font-weight: 600; color: #3B82F6; letter-spacing: 1px; margin-bottom: 16px; }}
+  h1 {{ font-size: 32px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }}
+  .meta {{ color: #8B9DBB; font-size: 13px; }}
+  .score-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }}
+  .score-card {{ background: #0F1628; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 20px; }}
+  .score-label {{ font-size: 11px; color: #4A5568; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 8px; }}
+  .score-value {{ font-size: 32px; font-weight: 600; letter-spacing: -1px; }}
+  .score-tier {{ font-size: 11px; margin-top: 4px; }}
+  .section {{ margin-bottom: 40px; }}
+  .section-header {{ display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; border-bottom: 0.5px solid rgba(255,255,255,0.06); padding-bottom: 12px; }}
+  .section-title {{ font-size: 16px; font-weight: 600; }}
+  .section-badge {{ font-size: 10px; background: rgba(37,99,235,0.15); color: #3B82F6; padding: 3px 10px; border-radius: 99px; font-weight: 600; letter-spacing: 0.5px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th {{ text-align: left; color: #4A5568; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }}
+  td {{ padding: 10px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.04); vertical-align: middle; }}
+  tr:hover td {{ background: rgba(255,255,255,0.02); }}
+  .alert {{ background: rgba(239,68,68,0.08); border: 0.5px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #FCA5A5; }}
+  .footer {{ border-top: 0.5px solid rgba(255,255,255,0.06); padding-top: 24px; margin-top: 40px; color: #4A5568; font-size: 12px; display: flex; justify-content: space-between; }}
+  @media print {{ body {{ background: white; color: black; }} .score-card {{ background: #f8f8f8; border: 1px solid #ddd; }} }}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">CYBER&LEGAL · AI GOVERNANCE ASSESSMENT</div>
+    <h1>{title}</h1>
+    <div class="meta">
+      Model evaluated: <strong style="color:#F0F4FF">{model or 'Not specified'}</strong> &nbsp;·&nbsp;
+      Generated: {now} &nbsp;·&nbsp;
+      Engine: COMPL-AI v2 (ETH Zurich × LatticeFlow AI × INSAIT)
+    </div>
+  </div>
+
+  <!-- Score Cards -->
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-label">COMPOSITE SCORE</div>
+      <div class="score-value" style="color:{composite_color}">{fmt(composite)}</div>
+      <div class="score-tier" style="color:{composite_color}">Overall Governance Posture</div>
+    </div>
+    <div class="score-card">
+      <div class="score-label">EU AI ACT</div>
+      <div class="score-value" style="color:{score_to_color(eu_score)}">{fmt(eu_score)}</div>
+      <div class="score-tier" style="color:{score_to_color(eu_score)}">{eu_tier}</div>
+    </div>
+    <div class="score-card">
+      <div class="score-label">OWASP LLM TOP 10</div>
+      <div class="score-value" style="color:{score_to_color(owasp_score)}">{fmt(owasp_score)}</div>
+      <div class="score-tier" style="color:{score_to_color(owasp_score)}">{owasp_status}</div>
+    </div>
+    <div class="score-card">
+      <div class="score-label">NIST AI RMF</div>
+      <div class="score-value" style="color:{score_to_color(nist_score)}">{fmt(nist_score)}</div>
+      <div class="score-tier" style="color:{score_to_color(nist_score)}">{nist_maturity}</div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  {''.join([f'<div class="alert">⚠️ OWASP CRITICAL FAILURE: {c} — Immediate remediation required.</div>' for c in owasp_critical])}
+  {''.join([f'<div class="alert">🚨 ENISA CRITICAL THREAT: {t} — Critical residual risk detected.</div>' for t in enisa_critical])}
+
+  <!-- EU AI Act -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">EU AI Act Compliance — 6 Core Principles</span>
+      <span class="section-badge">COMPL-AI · ETH ZURICH × LATTICEFLOW AI</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Principle</th><th>Article</th><th style="width:200px">Score</th><th>%</th><th>Status</th>
+      </tr></thead>
+      <tbody>{principle_rows(eu_principles)}</tbody>
+    </table>
+  </div>
+
+  <!-- OWASP -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">OWASP LLM Top 10 — 2025 Edition</span>
+      <span class="section-badge">OWASP FOUNDATION · CC BY-SA 4.0</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Vulnerability</th><th>Severity</th><th style="width:150px">Pass Rate</th><th>Score</th>
+      </tr></thead>
+      <tbody>{owasp_rows(owasp_categories)}</tbody>
+    </table>
+  </div>
+
+  <!-- NIST AI RMF -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">NIST AI RMF — 4 Core Functions</span>
+      <span class="section-badge">NIST AI 100-1 (2023) · PUBLIC DOMAIN</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Function</th><th>Description</th><th style="width:150px">Score</th><th>%</th><th>Maturity</th>
+      </tr></thead>
+      <tbody>{nist_function_rows(nist_functions)}</tbody>
+    </table>
+  </div>
+
+  <!-- ENISA -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">ENISA AI Threat Landscape — 11 Threat Categories</span>
+      <span class="section-badge">ENISA 2024 · CC BY 4.0</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Threat</th><th>Category</th><th>Risk Level</th><th>Mitigation</th>
+      </tr></thead>
+      <tbody>{enisa_rows(enisa_threats)}</tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>Cyber&Legal AI Governance Lab · <a href="https://cyberandlegal.com" style="color:#3B82F6">cyberandlegal.com</a></span>
+    <span>COMPL-AI Apache 2.0 · NIST Public Domain · OWASP CC BY-SA 4.0 · ENISA CC BY 4.0</span>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"\n✅ HTML Report generated: {output_path}")
+    return output_path
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Cyber&Legal · Report Generator")
+    parser.add_argument("--title", default="AI Governance Assessment Report")
+    parser.add_argument("--model", default="")
+    parser.add_argument("--output", default="reports/output/assessment_report.html")
+    args = parser.parse_args()
+
+    complai = load_json(REPORT_DIR / "assessment_summary.json")
+    owasp = load_json(REPORT_DIR / "owasp_assessment.json")
+    nist = load_json(REPORT_DIR / "nist_assessment.json")
+    enisa = load_json(REPORT_DIR / "enisa_assessment.json")
+
+    generate_html_report(complai, owasp, nist, enisa, args.title, args.model, args.output)
+    print(f"\n  Open with: open {args.output}\n")
+
+
+if __name__ == "__main__":
+    main()

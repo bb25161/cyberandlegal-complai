@@ -1,144 +1,118 @@
-name: Weekly AI Governance Assessment
+# 🗺️ Cyber&Legal AI Governance Lab — Roadmap
 
-on:
-  schedule:
-    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
-  workflow_dispatch:      # Allow manual trigger from GitHub UI
-    inputs:
-      model:
-        description: 'Model to evaluate'
-        required: false
-        default: 'openai/gpt-4o-mini'
-      limit:
-        description: 'Samples per benchmark'
-        required: false
-        default: '10'
+---
 
-jobs:
-  ai-governance-assessment:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
+## Current State (v1.0) — What Works Today
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+| Component | Status | Notes |
+|---|---|---|
+| NIST AI RMF Assessment | ✅ Working | Interactive + pre-filled JSON mode |
+| ENISA Threat Evaluator | ✅ Working | 11 threat categories, interactive |
+| ISO 42001 Self-Assessment | ✅ Working | 7 clauses, 30 questions |
+| OWASP LLM Top 10 Tests | ✅ Working | OpenAI/Anthropic providers |
+| COMPL-AI Integration | ⚠️ Partial | OpenAI/Anthropic only (Gemini encoding bug) |
+| HTML Report Generator | ✅ Working | Multi-framework composite report |
+| GitHub Actions CI | ✅ Deployed | Weekly automated assessment |
+| Framework JSON Files | ✅ Complete | NIST, OWASP, ENISA, EU AI Act, ISO 42001 |
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+**Known limitations:**
+- Gemini API incompatible with COMPL-AI (litellm encoding issue)
+- COMPL-AI requires OpenAI or Anthropic API key (not free)
+- Rate limits on Gemini free tier affect OWASP direct tests
 
-      - name: Install uv
-        run: pip install uv --quiet
+---
 
-      - name: Clone COMPL-AI
-        run: |
-          git clone https://github.com/compl-ai/compl-ai.git
-          cd compl-ai
-          uv sync
-          echo "COMPL_AI_VENV=$(pwd)/.venv" >> $GITHUB_ENV
+## v1.1 — Near Term (Next 4 Weeks)
 
-      - name: Install Cyber&Legal dependencies
-        run: pip install openai anthropic python-dotenv --quiet
+### Fix Gemini Compatibility
+- Replace litellm with direct Gemini SDK in COMPL-AI wrapper
+- Enable Gemini 2.0 Flash for all benchmark evaluations
+- Document workarounds for rate limits
 
-      - name: Create output directories
-        run: mkdir -p reports/output reports/raw
+### Promptfoo Integration
+- Add `assessments/promptfoo_redteam.py` wrapper
+- Promptfoo supports Gemini natively
+- Red-team reports exportable to our HTML format
 
-      - name: Run COMPL-AI EU AI Act Evaluation
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          COMPLAI_MODEL: ${{ github.event.inputs.model || 'openai/gpt-4o-mini' }}
-          COMPLAI_LIMIT: ${{ github.event.inputs.limit || '10' }}
-        run: |
-          source compl-ai/.venv/bin/activate
-          python assessments/compl_ai_runner.py \
-            --model "$COMPLAI_MODEL" \
-            --tasks all \
-            --limit "$COMPLAI_LIMIT" \
-            --results-dir reports/raw \
-            --output reports/output/assessment_summary.json
+### LM Evaluation Harness Integration
+- Add `assessments/lm_eval_runner.py`
+- 60+ academic benchmarks via EleutherAI's framework
+- HuggingFace model support without GPU (small models)
 
-      - name: Run OWASP LLM Top 10 Assessment
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          python assessments/owasp_llm_assessor.py \
-            --model gpt-4o-mini \
-            --provider openai \
-            --output reports/output/owasp_assessment.json
+---
 
-      - name: Generate HTML Report
-        run: |
-          python scripts/generate_report.py \
-            --title "Weekly AI Governance Assessment — $(date +'%B %d, %Y')" \
-            --model "${{ github.event.inputs.model || 'openai/gpt-4o-mini' }}" \
-            --output reports/output/assessment_report.html
+## v1.2 — Medium Term (1-3 Months)
 
-      - name: Upload Assessment Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-governance-report-${{ github.run_number }}
-          path: reports/output/
-          retention-days: 90
+### Llama Guard Integration
+- Add `assessments/llama_guard_scanner.py`
+- Use Meta's Llama Guard 3 for content safety classification
+- Free, runs locally on CPU for small batches
+- Maps to OWASP LLM01 and ENISA T-05
 
-      - name: Check for Critical Failures
-        run: |
-          python - <<'EOF'
-          import json, sys
+### Giskard RAG Evaluation
+- Add `assessments/giskard_rag_evaluator.py`
+- Test RAG pipelines for hallucination, groundedness, retrieval quality
+- Maps to OWASP LLM08 (Vector and Embedding Weaknesses)
 
-          # Check OWASP critical failures
-          try:
-            with open("reports/output/owasp_assessment.json") as f:
-              owasp = json.load(f)
-            critical = owasp.get("critical_failures", [])
-            if critical:
-              print(f"::warning:: OWASP Critical Failures detected: {', '.join(critical)}")
-          except FileNotFoundError:
-            pass
+### ISO 42001 Evidence Pack Generator
+- Generate compliance evidence documentation automatically
+- Template-based model cards, data cards, risk registers
+- Export as PDF or DOCX for auditors
 
-          # Check EU AI Act composite score
-          try:
-            with open("reports/output/assessment_summary.json") as f:
-              summary = json.load(f)
-            score = summary.get("eu_ai_act_assessment", {}).get("composite_eu_ai_act_score")
-            if score and score < 0.50:
-              print(f"::error:: EU AI Act compliance score below 50%: {score:.0%}")
-              sys.exit(1)
-          except FileNotFoundError:
-            pass
+---
 
-          print("✅ Assessment checks passed")
-          EOF
+## v2.0 — Platform Vision (3-6 Months)
 
-      - name: Post Summary to GitHub
-        if: always()
-        run: |
-          python - <<'EOF'
-          import json, os
+### Web Dashboard
+- React/Next.js frontend replacing HTML static reports
+- Real-time assessment status
+- Historical trend tracking
+- LatticeFlow-style UI (dark theme, enterprise look)
 
-          summary_lines = ["## 🛡️ AI Governance Assessment Results\n"]
+### Multi-Tenant Assessment Platform
+- Organization accounts
+- Multiple AI system tracking
+- Role-based access (Assessor, Reviewer, Executive)
+- Export reports as PDF for clients
 
-          try:
-            with open("reports/output/assessment_summary.json") as f:
-              data = json.load(f)
-            score = data.get("eu_ai_act_assessment", {}).get("composite_eu_ai_act_score")
-            tier = data.get("eu_ai_act_assessment", {}).get("compliance_tier", "N/A")
-            summary_lines.append(f"**EU AI Act Score:** {f'{score:.0%}' if score else 'N/A'} — {tier}")
-          except:
-            summary_lines.append("EU AI Act: Assessment not available")
+### Continuous Monitoring
+- Weekly automated CI/CD assessments
+- Alert on compliance score degradation
+- Webhook notifications to Slack/Teams
+- Integration with model registries
 
-          try:
-            with open("reports/output/owasp_assessment.json") as f:
-              owasp = json.load(f)
-            score = owasp.get("overall_score")
-            status = owasp.get("owasp_status", "N/A")
-            summary_lines.append(f"**OWASP LLM Top 10:** {f'{score:.0%}' if score else 'N/A'} — {status}")
-          except:
-            summary_lines.append("OWASP: Assessment not available")
+### Additional Framework Support
+- CIS AI Benchmark controls
+- MITRE ATLAS threat matrix
+- IEEE P2894 AI Agent Interoperability
+- SOC 2 Type II AI controls
 
-          summary_lines.append("\nFull report available in workflow artifacts.")
+---
 
-          with open(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null"), "w") as f:
-            f.write("\n".join(summary_lines))
-          EOF
+## What We Deliberately Will NOT Build
+
+| Item | Reason |
+|---|---|
+| ISO 42001 certification service | Requires accredited auditors — not our scope |
+| Legal compliance advice | We are not lawyers — always recommend legal counsel |
+| Model training or fine-tuning | Out of scope — assessment only |
+| Real-time production guardrails | Use Llama Guard or GuardionAI for that |
+| Paid SaaS platform | Open source first, always |
+
+---
+
+## Contributing
+
+We welcome contributions in these areas:
+1. **New framework mappings** — CIS, MITRE ATLAS, sector-specific regulations
+2. **Additional assessment questions** — ISO 42001, NIST improvements
+3. **Bug fixes** — especially Gemini compatibility
+4. **Documentation** — tutorials, use case guides
+5. **Translations** — Turkish (TR), German (DE), French (FR) versions
+
+Open a GitHub Issue or Pull Request at: https://github.com/bb25161/cyberandlegal-complai
+
+---
+
+*Roadmap is subject to change based on community feedback and regulatory developments.*  
+*Cyber&Legal — cyberandlegal.com*
