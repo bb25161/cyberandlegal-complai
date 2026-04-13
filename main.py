@@ -264,6 +264,54 @@ def assess_risk(request: RiskAssessmentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+@app.post("/assess/risk/full")
+def assess_risk_full(request: RiskAssessmentRequest):
+    """
+    Tam AI risk assessment — beyan + kanıt bazlı.
+
+    FARK:
+        POST /assess/risk      → Sadece müşteri beyanı kullanır
+                                  Hızlı, API key gerektirmez
+        POST /assess/risk/full → Önce OWASP testi çalıştırır
+                                  Sonra Risk Engine'i kanıtla besler
+                                  Beyan vs kanıt gap analizi üretir
+
+    NE DÖNER:
+        Tüm /assess/risk çıktısı +
+        evidence_summary:
+            - owasp_score: Model gerçekte ne kadar güvenli?
+            - gap_analysis: Beyan ile test sonucu arasındaki fark
+            - evidence_log: Hangi test çalıştı, ne buldu?
+
+    MALIYET:
+        OWASP testi: ~$0.01 (15 prompt × 2 API çağrısı)
+        LLM-as-Judge ile 3 katmanlı değerlendirme yapılır
+    """
+    try:
+        from scoring.context_engine import run_assessment_with_tests
+
+        assessment_id = request.assessment_id or (
+            f"CL-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}-FULL"
+        )
+
+        intake = {
+            "assessment_id":     assessment_id,
+            "timestamp":         datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            "schema_version":    "1.0",
+            "context":           request.context.model_dump(),
+            "harm_dimensions":   request.harm_dimensions.model_dump(),
+            "likelihood_inputs": request.likelihood_inputs.model_dump(),
+            "control_inventory": request.control_inventory.model_dump(),
+            "evidence_layer":    request.evidence_layer.model_dump(),
+        }
+
+        result = run_assessment_with_tests(intake, run_owasp=True)
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Eski endpoint'ler — 410 Gone
 @app.get("/assess/questions")
 def deprecated_questions():

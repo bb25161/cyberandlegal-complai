@@ -359,6 +359,121 @@ def run_assessment(intake: dict, evidence_overrides: Optional[dict] = None) -> d
     return report
 
 
+def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
+    """
+    Tam assessment — önce test motorları çalışır, sonra Risk Engine beslenir.
+
+    AKIM:
+        1. Intake alınır
+        2. run_owasp=True ise OWASP Engine çalıştırılır
+           → Model gerçekten prompt injection'a açık mı?
+           → Sonuç: owasp_composite_score (0-1 arası)
+        3. Test sonuçları evidence_layer'a yazılır
+        4. Risk Engine bu kanıtlarla çalışır
+           → evidence_adjustment Likelihood Score'u etkiler
+           → Beyan değil, kanıt bazlı risk
+
+    NEDEN BU AYRIMI YAPIYORUZ:
+        run_assessment()         → beyan bazlı (müşteri ne söylüyor)
+        run_assessment_with_tests() → kanıt bazlı (model gerçekte ne yapıyor)
+        İkisi arasındaki fark = GAP ANALIZI = raporun en değerli kısmı
+
+    SEKTÖRE GÖRE AĞIRLIKLAR (ISO 31000 uyumlu):
+        Finans/Sağlık/Hukuk: OWASP+Promptfoo ağırlıklı (güvenlik kritik)
+        Genel: dengeli dağılım
+        Bu ağırlıklar evidence_adjustment hesaplamasına girer
+
+    Parametreler:
+        intake    : intake_schema formatında dict
+        run_owasp : True ise OWASP Engine çalıştırılır (API key gerekir)
+    """
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    evidence_results = {}
+    evidence_log = []
+
+    sector = intake.get("context", {}).get("sector", "general")
+
+    # --- OWASP TESTİ ---
+    if run_owasp:
+        try:
+            from engines.owasp_engine import run_owasp_tests, _detect_provider_and_key
+
+            provider, api_key, model = _detect_provider_and_key()
+
+            if api_key:
+                owasp_result = run_owasp_tests(
+                    model=model,
+                    provider=provider,
+                    api_key=api_key,
+                    limit_per_category=10,  # NIST MEASURE 2.3 — minimum 10 test/kategori
+                    dry_run=False
+                )
+
+                if owasp_result.get("status") == "completed":
+                    score = owasp_result.get("composite_score")
+                    evidence_results["owasp_composite_score"] = score
+                    evidence_results["owasp_overall_status"]  = owasp_result.get("overall_status")
+                    evidence_results["owasp_critical_failures"] = owasp_result.get("critical_failures", [])
+                    evidence_log.append({
+                        "engine":  "OWASP LLM Top 10",
+                        "score":   score,
+                        "status":  owasp_result.get("overall_status"),
+                        "model":   model,
+                        "note":    "LLM-as-Judge ile 3 katmanlı değerlendirme"
+                    })
+            else:
+                evidence_log.append({
+                    "engine": "OWASP LLM Top 10",
+                    "score":  None,
+                    "status": "skipped",
+                    "note":   "API key bulunamadi"
+                })
+
+        except Exception as e:
+            evidence_log.append({
+                "engine": "OWASP LLM Top 10",
+                "score":  None,
+                "status": "error",
+                "note":   str(e)[:100]
+            })
+
+    # --- EVIDENCE LAYER'A YAZ ---
+    # Mevcut evidence_layer varsa koru, üstüne ekle
+    intake["evidence_layer"] = {
+        **intake.get("evidence_layer", {}),
+        **evidence_results,
+        "evidence_timestamp": datetime.datetime.now(
+            datetime.timezone.utc
+        ).isoformat().replace("+00:00", "Z"),
+        "evidence_log": evidence_log,
+        "sector": sector,
+    }
+
+    # --- RİSK ENGINE ---
+    result = run_assessment(intake)
+
+    # --- GAP ANALİZİ EKLE ---
+    # Beyan bazlı skor ile kanıt bazlı skor arasındaki fark
+    # Bu raporun en değerli kısmı
+    result["evidence_summary"] = {
+        "engines_run":     [e["engine"] for e in evidence_log],
+        "evidence_log":    evidence_log,
+        "gap_analysis": {
+            "description": (
+                "Difference between what the organization declared "
+                "and what automated testing revealed"
+            ),
+            "owasp_score":   evidence_results.get("owasp_composite_score"),
+            "owasp_status":  evidence_results.get("owasp_overall_status"),
+            "critical_failures": evidence_results.get("owasp_critical_failures", []),
+        }
+    }
+
+    return result
+
+
 if __name__ == "__main__":
     # Test
     sample = {
