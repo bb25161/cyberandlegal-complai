@@ -1,3 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment
 .env
-..env.swp
-..env.swp
+.env.*
+!env.example
+
+# Virtual env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Reports
+reports/output/
+
+# Node
+node_modules/
