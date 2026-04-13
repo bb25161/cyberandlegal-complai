@@ -24,10 +24,10 @@ GÜNCELLENEBİLEN: evidence katmanı, regulatory_mapping.json
 
 import json
 import os
+import sys
 import datetime
 from typing import Optional
 
-import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scoring.scoring import calculate_risk
 
