@@ -80,16 +80,44 @@ def apply_regulatory_mapping(risk_result: dict, intake: dict, mapping: dict) -> 
     triggered_rules = []
 
     # --- EU AI ACT ---
-    high_risk_sectors = ["finance", "healthcare", "legal", "public", "hr_recruitment"]
-    high_risk_use_cases = ["credit_scoring", "medical_diagnosis", "hr_screening",
-                           "decision_making_about_individuals"]
+    # EU AI Act Annex III — HUKUKI SINIFLANDIRMA
+    # KRITIK: Annex III high-risk sinifi use case bazli belirlenir.
+    # Teknik residual risk skoru bu sinifi YARATMAZ.
+    # Yuksek teknik risk = daha dikkatli olmak gerekir, Annex III degil.
+    # Kaynak: EU AI Act Art. 6 ve Annex III — exhaustive list
+    #
+    # Annex III kapasamindaki use case'ler:
+    #   §1 Biyometrik tanimlama
+    #   §2 Kritik altyapi yonetimi
+    #   §3 Egitim degerlendirme
+    #   §4 Istihdam / HR / performans
+    #   §5 Temel hizmetlere erisim (kredi, sigorta, sosyal haklar)
+    #   §6 Koluk / guvenllik / adalet
+    #   §7 Goc ve sinir kontrolu
+    #   §8 Demokratik surecler
 
-    if sector in high_risk_sectors or use_case in high_risk_use_cases or residual_level in ["HIGH", "CRITICAL"]:
+    annex3_use_cases = [
+        "credit_scoring", "insurance_risk_scoring", "social_benefits_scoring",
+        "hr_screening", "performance_management",
+        "medical_diagnosis", "medical_device",
+        "biometric_identification", "law_enforcement",
+        "migration_border_control", "legal_interpretation",
+        "critical_infrastructure_management", "education_assessment",
+        "decision_making_about_individuals",
+    ]
+
+    is_annex3 = use_case in annex3_use_cases
+    is_high_risk_sector = sector in ["finance", "healthcare", "legal", "public", "hr_recruitment"]
+    technical_risk_note = f"Technical residual risk: {residual_level} — independent of legal classification"
+
+    if is_annex3:
         triggered_rules.append({
             "rule_id": "EUAIA-001",
             "framework": "EU AI Act",
             "classification": "HIGH-RISK — Annex III",
-            "trigger_reason": f"Sector: {sector}, Use case: {use_case}, Risk: {residual_level}",
+            "trigger_reason": f"Use case '{use_case}' is listed in EU AI Act Annex III (Art. 6)",
+            "legal_basis": "EU AI Act Art. 6 + Annex III exhaustive list",
+            "technical_risk_note": technical_risk_note,
             "key_obligations": [
                 "Art. 9 — Risk management system required",
                 "Art. 10 — Data governance and bias testing",
@@ -351,7 +379,20 @@ def run_assessment(intake: dict, evidence_overrides: Optional[dict] = None) -> d
             "schema_version":        "1.0",
             "risk_formula":          "Inherent = Harm × Likelihood | Residual = Inherent × max(0.2, Control Gap)",
             "weights_baseline":      "v1.0 — April 2026",
-            "evidence_included":     bool(intake.get("evidence_layer", {}).get("compl_ai_bias_score")),
+            "evidence_included": any([
+                    intake.get("evidence_layer", {}).get("owasp_composite_score") is not None,
+                    intake.get("evidence_layer", {}).get("compl_ai_bias_score") is not None,
+                    intake.get("evidence_layer", {}).get("lm_eval_score") is not None,
+                    intake.get("evidence_layer", {}).get("promptfoo_red_team_score") is not None,
+                ]),
+                "evidence_sources": [
+                    src for src, val in {
+                        "owasp":    intake.get("evidence_layer", {}).get("owasp_composite_score"),
+                        "compl_ai": intake.get("evidence_layer", {}).get("compl_ai_bias_score"),
+                        "lm_eval":  intake.get("evidence_layer", {}).get("lm_eval_score"),
+                        "promptfoo": intake.get("evidence_layer", {}).get("promptfoo_red_team_score"),
+                    }.items() if val is not None
+                ],
             "methodology_statement": risk_result.get("methodology_statement"),
         }
     }
@@ -416,6 +457,44 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
                     evidence_results["owasp_composite_score"] = score
                     evidence_results["owasp_overall_status"]  = owasp_result.get("overall_status")
                     evidence_results["owasp_critical_failures"] = owasp_result.get("critical_failures", [])
+
+                    # KRITIK: OWASP kaniti beyan override eder.
+                    # Musteri "adversarial test yaptim" dese bile
+                    # gercek OWASP skoru dusukse control operating score dusmeli.
+                    # Kaynak: NIST MEASURE 2.3 — evidence over declaration principle
+                    #
+                    # OWASP >= 0.8 → adversarial test PASS → beyan onaylanir
+                    # OWASP 0.5-0.8 → PARTIAL → adversarial test "basic" sayilir
+                    # OWASP < 0.5  → FAIL → adversarial test yapilmamis sayilir
+                    ctrl = intake.get("control_inventory", {})
+                    testing = ctrl.get("testing_and_validation", {})
+
+                    if score >= 0.8:
+                        testing["adversarial_testing_performed"] = True
+                        testing["test_coverage"] = max(
+                            testing.get("test_coverage", "none"),
+                            "comprehensive",
+                            key=lambda x: ["none","basic","partial","comprehensive"].index(x)
+                            if x in ["none","basic","partial","comprehensive"] else 0
+                        )
+                    elif score >= 0.5:
+                        testing["adversarial_testing_performed"] = True
+                        testing["test_coverage"] = "partial"
+                    else:
+                        # Kotu skor — beyan gecersiz sayilir
+                        testing["adversarial_testing_performed"] = False
+                        testing["test_coverage"] = "none"
+
+                    ctrl["testing_and_validation"] = testing
+                    intake["control_inventory"] = ctrl
+
+                    evidence_results["owasp_control_override"] = {
+                        "applied": True,
+                        "owasp_score": score,
+                        "adversarial_testing_set_to": testing["adversarial_testing_performed"],
+                        "test_coverage_set_to": testing["test_coverage"],
+                        "reason": "OWASP evidence overrides declaration per NIST MEASURE 2.3"
+                    }
                     evidence_log.append({
                         "engine":  "OWASP LLM Top 10",
                         "score":   score,
