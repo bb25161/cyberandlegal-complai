@@ -32,21 +32,44 @@ from typing import Optional
 
 # Cyber&Legal için seçilmiş benchmark setleri
 # Her set farklı derinlikte test yapar
+# Task capability mapping
+# OpenAI / chat-completions backend loglikelihood desteklemez.
+# Bu nedenle chat-safe ve full-capability task listeleri ayridir.
+# Kaynak:
+# https://github.com/EleutherAI/lm-evaluation-harness/issues/942
+
+CHAT_SAFE_TASKS = {
+    "truthfulqa_gen",
+}
+
+LOGLIKELIHOOD_TASKS = {
+    "hellaswag",
+    "arc_easy",
+    "arc_challenge",
+    "mmlu",
+    "winogrande",
+    "piqa",
+    "truthfulqa_mc1",
+}
+
 BENCHMARK_SETS = {
     "quick": {
-        "tasks": ["truthfulqa_gen", "hellaswag"],
+        "tasks_chat_safe": ["truthfulqa_gen"],
+        "tasks_full_capability": ["truthfulqa_gen", "hellaswag"],
         "aciklama": "Hızlı test — 2 benchmark, ~5 dakika",
         "samples": 100,
         "eu_ai_act": "Art. 13 — Şeffaflık ve Doğruluk",
     },
     "standard": {
-        "tasks": ["truthfulqa_gen", "hellaswag", "arc_easy", "mmlu"],
+        "tasks_chat_safe": ["truthfulqa_gen"],
+        "tasks_full_capability": ["truthfulqa_gen", "hellaswag", "arc_easy", "mmlu"],
         "aciklama": "Standart değerlendirme — 4 benchmark, ~20 dakika",
         "samples": 200,
         "eu_ai_act": "Art. 13 + Art. 15 — Şeffaflık ve Doğruluk",
     },
     "full": {
-        "tasks": ["truthfulqa_gen", "hellaswag", "arc_easy", "arc_challenge", "mmlu", "winogrande", "piqa"],
+        "tasks_chat_safe": ["truthfulqa_gen"],
+        "tasks_full_capability": ["truthfulqa_gen", "hellaswag", "arc_easy", "arc_challenge", "mmlu", "winogrande", "piqa"],
         "aciklama": "Tam değerlendirme — 7 benchmark, ~60 dakika",
         "samples": 500,
         "eu_ai_act": "Art. 13 + Art. 15 — Kapsamlı Değerlendirme",
@@ -121,7 +144,13 @@ def run_lm_eval(
             return _kurulu_degil(model, config)
 
     # Komut oluştur
-    tasks_str = ",".join(config["tasks"])
+    # Model capability bazli task secimi
+    if model_type == "openai":
+        tasks = config.get("tasks_chat_safe", ["truthfulqa_gen"])
+    else:
+        tasks = config.get("tasks_full_capability", config.get("tasks_chat_safe", []))
+
+    tasks_str = ",".join(tasks)
     cmd = [
         "/home/codespace/.python/current/bin/lm_eval",
         "--model", "openai-chat-completions" if model_type == "openai" else model_type,
@@ -153,7 +182,31 @@ def run_lm_eval(
         env["OPENAI_API_KEY"] = api_key
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+        # stderr'te INFO/WARNING olabilir; bu tek basina hata degildir.
+        # Gercek hata: process non-zero return code ile cikarsa.
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600,
+            env=env
+        )
+
+        if result.returncode != 0:
+            stderr_text = (result.stderr or "").strip()
+            stderr_preview = stderr_text[:1200]
+
+            # OpenAI chat + loglikelihood task uyumsuzlugu icin ozel mesaj
+            if "NotImplementedError" in stderr_text and "loglikelihood" in stderr_text:
+                return _hata(
+                    model,
+                    "Secilen benchmark seti loglikelihood gerektiren task iceriyor; "
+                    "OpenAI chat completions backend bunu desteklemiyor. "
+                    "Chat-safe task set kullanilmali.",
+                    config
+                )
+
+            return _hata(model, stderr_preview or "LM Eval process failed", config)
 
         # LM eval INFO/WARNING mesajlarini stderr ye yazar
         # Bu normal davranistir -- returncode 0 olsa bile stderr dolu olabilir
@@ -161,9 +214,6 @@ def run_lm_eval(
         import glob as _glob
         output_files = _glob.glob(f"{output_dir}/**/*.json", recursive=True)
 
-        if result.returncode != 0 and not output_files:
-            # Gercekten hata var -- ne output ne basari
-            return _hata(model, result.stderr[:300], config)
 
         if not output_files:
             # Returncode 0 ama dosya yok -- beklenmedik durum
