@@ -294,31 +294,114 @@ def calculate_likelihood_score(intake: dict) -> dict:
     }
 
 
+def _get_sector_weights(sector: str) -> dict:
+    """
+    Sektöre gore evidence motor agirlikları.
+
+    NEDEN SEKTORE GORE DEGISIYOR:
+        OWASP + Promptfoo = guvenlik sinyali
+            Finans/Hukuk: prompt injection, veri sizintisi kritik
+        COMPL-AI = regülasyon/bias sinyali
+            Saglik/Finans: ayrimcilik riski kritik, EU AI Act Annex III
+        LM Eval = kalite/hallucination sinyali
+            Hukuk/Saglik: yanlis bilgi olum/dava riski
+            Genel: dengeli
+
+    KAYNAK:
+        BaFin Dec 2025: finans AI risk = guvenlik + bias esit agirlikli
+        EBA Nov 2025: kredi skorlamada fairness testi zorunlu
+        MDR + EU AI Act: saglik AI bias testi kritik
+        NIST AI RMF: sektor bazli risk profili
+    """
+    weights = {
+        "finance": {
+            "owasp":    0.35,
+            "compl_ai": 0.35,
+            "lm_eval":  0.15,
+            "promptfoo": 0.15,
+        },
+        "healthcare": {
+            "owasp":    0.25,
+            "compl_ai": 0.45,
+            "lm_eval":  0.20,
+            "promptfoo": 0.10,
+        },
+        "legal": {
+            "owasp":    0.25,
+            "compl_ai": 0.35,
+            "lm_eval":  0.30,
+            "promptfoo": 0.10,
+        },
+        "public": {
+            "owasp":    0.35,
+            "compl_ai": 0.30,
+            "lm_eval":  0.20,
+            "promptfoo": 0.15,
+        },
+        "hr_recruitment": {
+            "owasp":    0.20,
+            "compl_ai": 0.50,
+            "lm_eval":  0.20,
+            "promptfoo": 0.10,
+        },
+    }
+    # Tanimsiz sektor → dengeli dagilim
+    default = {
+        "owasp":    0.35,
+        "compl_ai": 0.30,
+        "lm_eval":  0.20,
+        "promptfoo": 0.15,
+    }
+    return weights.get(sector, default)
+
+
 def _calculate_evidence_adjustment(evidence: dict) -> float:
     """
     Test motoru sonuçlarından likelihood adjustment hesapla.
 
-    Düşük skor → yüksek risk → pozitif adjustment (likelihood artar)
-    Yüksek skor → düşük risk → negatif adjustment (likelihood azalır)
+    SEKTOR BAZLI AGIRLIK:
+        Her motor farklı sinyal verir — hepsi esit degildir.
+        OWASP/Promptfoo = guvenlik sinyali
+        COMPL-AI = regulasyon/bias sinyali
+        LM Eval = kalite/hallucination sinyali
+
+        Finans: COMPL-AI + OWASP esit agirlikli (bias + guvenlik kritik)
+        Saglik: COMPL-AI agirlikli (bias/fairness hayati onem tasir)
+        Hukuk: LM Eval agirlikli (yanlis bilgi = hukuki risk)
+        Genel: dengeli
+
+    FORMUL:
+        weighted_risk = sum(agirlik × (1 - skor)) / toplam_agirlik
+        adjustment = (weighted_risk - 0.5) × 0.6
+        Aralik: ±0.3
+
+    KAYNAK: BaFin Dec 2025, EBA Nov 2025, NIST AI RMF sector profiles
     """
-    scores = []
+    sector = evidence.get("sector", "general")
+    weights = _get_sector_weights(sector)
 
-    bias = evidence.get("compl_ai_bias_score")
-    owasp = evidence.get("owasp_composite_score")
-    lm_eval = evidence.get("lm_eval_score")
-    promptfoo = evidence.get("promptfoo_red_team_score")
+    weighted_sum = 0.0
+    total_weight = 0.0
 
-    for s in [bias, owasp, lm_eval, promptfoo]:
-        if s is not None:
-            # Düşük performans = yüksek risk
-            scores.append(1.0 - s)
+    motor_map = {
+        "owasp":    evidence.get("owasp_composite_score"),
+        "compl_ai": evidence.get("compl_ai_bias_score"),
+        "lm_eval":  evidence.get("lm_eval_score"),
+        "promptfoo": evidence.get("promptfoo_red_team_score"),
+    }
 
-    if not scores:
+    for motor, score in motor_map.items():
+        if score is not None:
+            weight = weights[motor]
+            weighted_sum += weight * (1.0 - score)
+            total_weight += weight
+
+    if total_weight == 0:
         return 0.0
 
-    avg_risk = sum(scores) / len(scores)
-    # ±0.3 aralığında adjustment
-    return round((avg_risk - 0.5) * 0.6, 3)
+    weighted_risk = weighted_sum / total_weight
+    # ±0.3 araliginda adjustment
+    return round((weighted_risk - 0.5) * 0.6, 3)
 
 
 def _primary_likelihood_driver(threat, susceptibility, deployment, incident) -> str:
