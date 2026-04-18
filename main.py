@@ -4,20 +4,18 @@ Cyber&Legal AI Governance Lab — API v2.0
 
 MİMARİ:
     Tek mimari: Risk Engine → Regulatory Mapping → Output
-    Eski questionnaire akışı kaldırıldı (v1 → deprecated)
-    Yeni akış: POST /assess/risk → run_assessment()
 
 ENDPOINT'LER:
-    GET  /              → Servis bilgisi
-    GET  /health        → Health check
-    GET  /frameworks    → Framework listesi
-    POST /assess/risk   → Tam risk assessment (yeni mimari)
-    GET  /report/{id}   → Assessment sonucu getir (yakında)
+    GET  /                 → Servis bilgisi
+    GET  /health           → Health check
+    GET  /frameworks       → Framework listesi
+    POST /assess/risk      → Beyan bazlı risk assessment
+    POST /assess/risk/full → OWASP destekli kanıt bazlı assessment
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List
 import datetime
 import os
@@ -25,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from scoring.context_engine import run_assessment
+from scoring.context_engine import run_assessment, run_assessment_with_tests
 
 app = FastAPI(
     title="Cyber&Legal AI Governance API",
@@ -53,13 +51,16 @@ class HarmType(BaseModel):
     type: str
     severity: str
 
+
 class AffectedStakeholder(BaseModel):
     stakeholder_type: str
     is_vulnerable: bool = False
 
+
 class DecisionFrequency(BaseModel):
     people_affected_monthly: str = "under_100"
     decision_criticality: str = "moderate"
+
 
 class Context(BaseModel):
     organization: str
@@ -73,6 +74,7 @@ class Context(BaseModel):
     vendor_documentation_available: str = "not_applicable"
     decision_frequency: DecisionFrequency = DecisionFrequency()
 
+
 class HarmDimensions(BaseModel):
     harm_types: List[HarmType] = []
     affected_stakeholders: List[AffectedStakeholder] = []
@@ -81,11 +83,13 @@ class HarmDimensions(BaseModel):
     cascade_effect: str = "contained"
     detectability: str = "detectable_within_days"
 
+
 class LikelihoodInputs(BaseModel):
     threat_exposure: str = "medium"
     past_incidents: str = "none_known"
     model_susceptibility: str = "medium"
     deployment_environment_risk: str = "internal_only"
+
 
 class HumanOversight(BaseModel):
     oversight_quality: str = "partial_review"
@@ -93,19 +97,23 @@ class HumanOversight(BaseModel):
     can_stop_system: bool = True
     automation_bias_training: bool = False
 
+
 class Explainability(BaseModel):
     decisions_explainable_to_users: bool = False
     explanation_quality: str = "no_explanation"
+
 
 class MonitoringLogging(BaseModel):
     logging_active: bool = False
     monitoring_frequency: str = "none"
     audit_trail_available: bool = False
 
+
 class OptOut(BaseModel):
     user_can_request_human_review: bool = False
     human_escalation_path_exists: bool = False
     vulnerable_user_detection: bool = False
+
 
 class TestingValidation(BaseModel):
     bias_testing_performed: bool = False
@@ -113,16 +121,19 @@ class TestingValidation(BaseModel):
     testing_frequency: str = "never"
     test_coverage: str = "none"
 
+
 class SupplyChain(BaseModel):
     vendor_risk_assessed: bool = False
     model_card_available: bool = False
     bias_test_results_from_vendor: bool = False
     contractual_audit_rights: bool = False
 
+
 class IncidentResponse(BaseModel):
     incident_response_plan_exists: bool = False
     complaint_mechanism_available: bool = False
     fallback_procedure_defined: bool = False
+
 
 class ControlInventory(BaseModel):
     human_oversight: HumanOversight = HumanOversight()
@@ -133,11 +144,13 @@ class ControlInventory(BaseModel):
     supply_chain_controls: SupplyChain = SupplyChain()
     incident_response: IncidentResponse = IncidentResponse()
 
+
 class EvidenceLayer(BaseModel):
     compl_ai_bias_score: Optional[float] = None
     owasp_composite_score: Optional[float] = None
     lm_eval_score: Optional[float] = None
     promptfoo_red_team_score: Optional[float] = None
+
 
 class RiskAssessmentRequest(BaseModel):
     assessment_id: Optional[str] = None
@@ -161,14 +174,15 @@ def root():
         "methodology": "Inherent Risk = Harm x Likelihood | Residual Risk = Inherent x Control Gap",
         "endpoints": {
             "risk_assessment": "POST /assess/risk",
-            "frameworks":      "GET /frameworks",
-            "docs":            "GET /docs"
+            "full_assessment": "POST /assess/risk/full",
+            "frameworks": "GET /frameworks",
+            "docs": "GET /docs"
         },
         "deprecated": {
-            "GET /assess/questions":   "410 Gone — replaced by POST /assess/risk",
+            "GET /assess/questions": "410 Gone — replaced by POST /assess/risk",
             "POST /assess/governance": "410 Gone — replaced by POST /assess/risk",
-            "POST /assess/model":      "410 Gone — replaced by POST /assess/risk",
-            "POST /score/unified":     "410 Gone — replaced by POST /assess/risk"
+            "POST /assess/model": "410 Gone — replaced by POST /assess/risk",
+            "POST /score/unified": "410 Gone — replaced by POST /assess/risk"
         }
     }
 
@@ -239,30 +253,26 @@ def assess_risk(request: RiskAssessmentRequest):
         - Full audit trail
     """
     try:
-        # Assessment ID oluştur
         assessment_id = request.assessment_id or (
             f"CL-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}"
         )
 
-        # Pydantic → dict
         intake = {
-            "assessment_id":     assessment_id,
-            "timestamp":         datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-            "schema_version":    "1.0",
-            "context":           request.context.model_dump(),
-            "harm_dimensions":   request.harm_dimensions.model_dump(),
+            "assessment_id": assessment_id,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            "schema_version": "1.0",
+            "context": request.context.model_dump(),
+            "harm_dimensions": request.harm_dimensions.model_dump(),
             "likelihood_inputs": request.likelihood_inputs.model_dump(),
             "control_inventory": request.control_inventory.model_dump(),
-            "evidence_layer":    request.evidence_layer.model_dump(),
+            "evidence_layer": request.evidence_layer.model_dump(),
         }
 
-        # Context engine çalıştır
         result = run_assessment(intake)
         return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 @app.post("/assess/risk/full")
@@ -272,38 +282,22 @@ def assess_risk_full(request: RiskAssessmentRequest):
 
     FARK:
         POST /assess/risk      → Sadece müşteri beyanı kullanır
-                                  Hızlı, API key gerektirmez
-        POST /assess/risk/full → Önce OWASP testi çalıştırır
-                                  Sonra Risk Engine'i kanıtla besler
-                                  Beyan vs kanıt gap analizi üretir
-
-    NE DÖNER:
-        Tüm /assess/risk çıktısı +
-        evidence_summary:
-            - owasp_score: Model gerçekte ne kadar güvenli?
-            - gap_analysis: Beyan ile test sonucu arasındaki fark
-            - evidence_log: Hangi test çalıştı, ne buldu?
-
-    MALIYET:
-        OWASP testi: ~$0.01 (15 prompt × 2 API çağrısı)
-        LLM-as-Judge ile 3 katmanlı değerlendirme yapılır
+        POST /assess/risk/full → Önce OWASP testi çalıştırır, sonra kanıt bazlı assessment üretir
     """
     try:
-        from scoring.context_engine import run_assessment_with_tests
-
         assessment_id = request.assessment_id or (
             f"CL-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}-FULL"
         )
 
         intake = {
-            "assessment_id":     assessment_id,
-            "timestamp":         datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-            "schema_version":    "1.0",
-            "context":           request.context.model_dump(),
-            "harm_dimensions":   request.harm_dimensions.model_dump(),
+            "assessment_id": assessment_id,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            "schema_version": "1.0",
+            "context": request.context.model_dump(),
+            "harm_dimensions": request.harm_dimensions.model_dump(),
             "likelihood_inputs": request.likelihood_inputs.model_dump(),
             "control_inventory": request.control_inventory.model_dump(),
-            "evidence_layer":    request.evidence_layer.model_dump(),
+            "evidence_layer": request.evidence_layer.model_dump(),
         }
 
         result = run_assessment_with_tests(intake, run_owasp=True)
@@ -312,7 +306,9 @@ def assess_risk_full(request: RiskAssessmentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Eski endpoint'ler — 410 Gone
+
+# --- ESKİ ENDPOINT'LER — 410 GONE ---
+
 @app.get("/assess/questions")
 def deprecated_questions():
     raise HTTPException(
@@ -324,6 +320,7 @@ def deprecated_questions():
             "docs": "/docs"
         }
     )
+
 
 @app.post("/assess/governance")
 def deprecated_governance():
@@ -337,6 +334,7 @@ def deprecated_governance():
         }
     )
 
+
 @app.post("/assess/intake")
 def deprecated_intake():
     raise HTTPException(
@@ -349,6 +347,7 @@ def deprecated_intake():
         }
     )
 
+
 @app.post("/assess/model")
 def deprecated_model():
     raise HTTPException(
@@ -360,6 +359,7 @@ def deprecated_model():
             "docs": "/docs"
         }
     )
+
 
 @app.post("/score/unified")
 def deprecated_unified():

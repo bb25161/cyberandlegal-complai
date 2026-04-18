@@ -30,110 +30,116 @@ import json
 import datetime
 from typing import Optional
 
+try:
+    from scoring.decision import get_deployment_recommendation
+except ModuleNotFoundError:
+    # direct script run fallback
+    from decision import get_deployment_recommendation
+
 
 # Harm severity → sayısal değer
 SEVERITY_MAP = {
     "catastrophic": 1.0,
-    "critical":     0.8,
-    "significant":  0.6,
-    "moderate":     0.4,
-    "minor":        0.2,
+    "critical": 0.8,
+    "significant": 0.6,
+    "moderate": 0.4,
+    "minor": 0.2,
 }
 
 # Reversibility çarpanı
 REVERSIBILITY_MAP = {
-    "irreversible":            2.0,
-    "difficult_to_reverse":    1.5,
-    "reversible_with_effort":  1.2,
-    "immediately_reversible":  1.0,
+    "irreversible": 2.0,
+    "difficult_to_reverse": 1.5,
+    "reversible_with_effort": 1.2,
+    "immediately_reversible": 1.0,
 }
 
 # Cascade çarpanı
 CASCADE_MAP = {
-    "systemic":                         1.5,
-    "affects_many_before_detected":     1.3,
+    "systemic": 1.5,
+    "affects_many_before_detected": 1.3,
     "triggers_further_automated_decisions": 1.2,
-    "contained":                        1.0,
+    "contained": 1.0,
 }
 
 # Etkilenen kişi ölçeği
 SCALE_MAP = {
-    "over_100000":       1.0,
-    "1000_to_100000":    0.75,
-    "100_to_1000":       0.5,
-    "under_100":         0.25,
+    "over_100000": 1.0,
+    "1000_to_100000": 0.75,
+    "100_to_1000": 0.5,
+    "under_100": 0.25,
 }
 
 # Tehdit maruziyeti
 THREAT_EXPOSURE_MAP = {
     "very_high": 1.0,
-    "high":      0.75,
-    "medium":    0.5,
-    "low":       0.25,
+    "high": 0.75,
+    "medium": 0.5,
+    "low": 0.25,
 }
 
 # Geçmiş olaylar
 INCIDENT_MAP = {
     "multiple_known_incidents": 1.0,
-    "one_known_incident":       0.6,
-    "near_misses_only":         0.3,
-    "none_known":               0.1,
+    "one_known_incident": 0.6,
+    "near_misses_only": 0.3,
+    "none_known": 0.1,
 }
 
 # Deployment ortamı riski
 DEPLOYMENT_MAP = {
-    "public_facing_high_volume":  1.0,
-    "public_facing_low_volume":   0.7,
-    "internal_only":              0.4,
-    "sandboxed":                  0.2,
+    "public_facing_high_volume": 1.0,
+    "public_facing_low_volume": 0.7,
+    "internal_only": 0.4,
+    "sandboxed": 0.2,
 }
 
 # Model susceptibility
 SUSCEPTIBILITY_MAP = {
-    "high":    1.0,
+    "high": 1.0,
     "unknown": 0.7,
-    "medium":  0.6,
-    "low":     0.3,
+    "medium": 0.6,
+    "low": 0.3,
 }
 
 # Tespit edilebilirlik
 DETECTABILITY_MAP = {
-    "may_never_be_detected":    1.0,
+    "may_never_be_detected": 1.0,
     "detectable_within_months": 0.7,
-    "detectable_within_days":   0.4,
-    "immediately_visible":      0.1,
+    "detectable_within_days": 0.4,
+    "immediately_visible": 0.1,
 }
 
 # Gözetim kalitesi
 OVERSIGHT_MAP = {
     "full_meaningful_review": 1.0,
-    "partial_review":         0.6,
-    "rubber_stamp":           0.2,
-    "none":                   0.0,
+    "partial_review": 0.6,
+    "rubber_stamp": 0.2,
+    "none": 0.0,
 }
 
 # Açıklanabilirlik
 EXPLAINABILITY_MAP = {
-    "full_xai":          1.0,
+    "full_xai": 1.0,
     "summary_explanation": 0.6,
-    "no_explanation":    0.0,
-    "not_applicable":    0.5,
+    "no_explanation": 0.0,
+    "not_applicable": 0.5,
 }
 
 # İzleme sıklığı
 MONITORING_MAP = {
     "real_time": 1.0,
-    "daily":     0.8,
-    "periodic":  0.4,
-    "none":      0.0,
+    "daily": 0.8,
+    "periodic": 0.4,
+    "none": 0.0,
 }
 
 # Test kapsamı
 TESTING_MAP = {
     "comprehensive": 1.0,
-    "partial":       0.6,
-    "basic":         0.3,
-    "none":          0.0,
+    "partial": 0.6,
+    "basic": 0.3,
+    "none": 0.0,
 }
 
 
@@ -194,9 +200,9 @@ def calculate_harm_score(intake: dict) -> dict:
 
     # Composite harm — capped at 1.0
     base_harm = (
-        severity_score  * 0.50 +
-        scale_score     * 0.30 +
-        rights_score    * 0.20
+        severity_score * 0.50 +
+        scale_score * 0.30 +
+        rights_score * 0.20
     )
     rev_adj = 1.0 + (reversibility_mult - 1.0) * 0.25
     cas_adj = 1.0 + (cascade_mult - 1.0) * 0.25
@@ -210,18 +216,18 @@ def calculate_harm_score(intake: dict) -> dict:
         dominant = top.get("type", "unknown")
 
     return {
-        "severity_score":           round(severity_score, 3),
-        "scale_score":              round(scale_score, 3),
-        "rights_impact_score":      round(rights_score, 3),
+        "severity_score": round(severity_score, 3),
+        "scale_score": round(scale_score, 3),
+        "rights_impact_score": round(rights_score, 3),
         "reversibility_multiplier": reversibility_mult,
-        "cascade_multiplier":       cascade_mult,
+        "cascade_multiplier": cascade_mult,
         "vulnerable_group_multiplier": vulnerable_mult,
-        "composite_harm_score":     round(composite, 3),
+        "composite_harm_score": round(composite, 3),
         "harm_breakdown": {
-            "dominant_harm_type":     dominant,
-            "rights_count":           len(rights),
+            "dominant_harm_type": dominant,
+            "rights_count": len(rights),
             "vulnerable_groups_present": has_vulnerable,
-            "children_present":       has_children,
+            "children_present": has_children,
         }
     }
 
@@ -263,33 +269,39 @@ def calculate_likelihood_score(intake: dict) -> dict:
     detect_score = DETECTABILITY_MAP.get(detectability, 0.4)
 
     # 6. Evidence adjustment — test motorlarından gelen sonuçlar
-    evidence_adj = _calculate_evidence_adjustment(evidence)
+    evidence_adj = _calculate_evidence_adjustment(evidence, context)
 
     # Ağırlıklı ortalama
     weighted = (
-        threat_score      * 0.30 +
+        threat_score * 0.30 +
         susceptibility_score * 0.25 +
-        deployment_score  * 0.20 +
-        incident_score    * 0.15 +
-        detect_score      * 0.10
+        deployment_score * 0.20 +
+        incident_score * 0.15 +
+        detect_score * 0.10
     )
 
     composite = min(1.0, max(0.0, weighted + evidence_adj))
 
     return {
-        "threat_prevalence_score":   round(threat_score, 3),
-        "susceptibility_score":      round(susceptibility_score, 3),
-        "incident_history_score":    round(incident_score, 3),
-        "deployment_risk_score":     round(deployment_score, 3),
-        "detectability_score":       round(detect_score, 3),
-        "evidence_adjustment":       round(evidence_adj, 3),
+        "threat_prevalence_score": round(threat_score, 3),
+        "susceptibility_score": round(susceptibility_score, 3),
+        "incident_history_score": round(incident_score, 3),
+        "deployment_risk_score": round(deployment_score, 3),
+        "detectability_score": round(detect_score, 3),
+        "evidence_adjustment": round(evidence_adj, 3),
         "composite_likelihood_score": round(composite, 3),
         "likelihood_breakdown": {
             "primary_driver": _primary_likelihood_driver(
                 threat_score, susceptibility_score, deployment_score, incident_score
             ),
-            "evidence_available": bool(evidence.get("compl_ai_bias_score") or evidence.get("owasp_composite_score")),
+            "evidence_available": bool(
+                evidence.get("compl_ai_bias_score") or
+                evidence.get("owasp_composite_score") or
+                evidence.get("lm_eval_score") or
+                evidence.get("promptfoo_red_team_score")
+            ),
             "evidence_timestamp": evidence.get("evidence_timestamp"),
+            "sector_used_for_weighting": context.get("sector", "general"),
         }
     }
 
@@ -315,47 +327,47 @@ def _get_sector_weights(sector: str) -> dict:
     """
     weights = {
         "finance": {
-            "owasp":    0.35,
+            "owasp": 0.35,
             "compl_ai": 0.35,
-            "lm_eval":  0.15,
+            "lm_eval": 0.15,
             "promptfoo": 0.15,
         },
         "healthcare": {
-            "owasp":    0.25,
+            "owasp": 0.25,
             "compl_ai": 0.45,
-            "lm_eval":  0.20,
+            "lm_eval": 0.20,
             "promptfoo": 0.10,
         },
         "legal": {
-            "owasp":    0.25,
+            "owasp": 0.25,
             "compl_ai": 0.35,
-            "lm_eval":  0.30,
+            "lm_eval": 0.30,
             "promptfoo": 0.10,
         },
         "public": {
-            "owasp":    0.35,
+            "owasp": 0.35,
             "compl_ai": 0.30,
-            "lm_eval":  0.20,
+            "lm_eval": 0.20,
             "promptfoo": 0.15,
         },
         "hr_recruitment": {
-            "owasp":    0.20,
+            "owasp": 0.20,
             "compl_ai": 0.50,
-            "lm_eval":  0.20,
+            "lm_eval": 0.20,
             "promptfoo": 0.10,
         },
     }
     # Tanimsiz sektor → dengeli dagilim
     default = {
-        "owasp":    0.35,
+        "owasp": 0.35,
         "compl_ai": 0.30,
-        "lm_eval":  0.20,
+        "lm_eval": 0.20,
         "promptfoo": 0.15,
     }
     return weights.get(sector, default)
 
 
-def _calculate_evidence_adjustment(evidence: dict) -> float:
+def _calculate_evidence_adjustment(evidence: dict, context: Optional[dict] = None) -> float:
     """
     Test motoru sonuçlarından likelihood adjustment hesapla.
 
@@ -377,16 +389,17 @@ def _calculate_evidence_adjustment(evidence: dict) -> float:
 
     KAYNAK: BaFin Dec 2025, EBA Nov 2025, NIST AI RMF sector profiles
     """
-    sector = evidence.get("sector", "general")
+    context = context or {}
+    sector = context.get("sector", "general")
     weights = _get_sector_weights(sector)
 
     weighted_sum = 0.0
     total_weight = 0.0
 
     motor_map = {
-        "owasp":    evidence.get("owasp_composite_score"),
+        "owasp": evidence.get("owasp_composite_score"),
         "compl_ai": evidence.get("compl_ai_bias_score"),
-        "lm_eval":  evidence.get("lm_eval_score"),
+        "lm_eval": evidence.get("lm_eval_score"),
         "promptfoo": evidence.get("promptfoo_red_team_score"),
     }
 
@@ -483,11 +496,11 @@ def calculate_control_effectiveness(intake: dict) -> dict:
         supply_score += 0.15
 
     design_composite = (
-        oversight_score     * 0.30 +
+        oversight_score * 0.30 +
         explainability_score * 0.20 +
-        opt_score           * 0.20 +
-        incident_score      * 0.15 +
-        supply_score        * 0.15
+        opt_score * 0.20 +
+        incident_score * 0.15 +
+        supply_score * 0.15
     )
 
     # --- OPERATING EFFECTIVENESS ---
@@ -520,9 +533,9 @@ def calculate_control_effectiveness(intake: dict) -> dict:
     adversarial_score = 0.8 if adversarial_tested else 0.0
 
     operating_composite = (
-        testing_score     * 0.30 +
-        monitoring_score  * 0.25 +
-        bias_score        * 0.25 +
+        testing_score * 0.30 +
+        monitoring_score * 0.25 +
+        bias_score * 0.25 +
         adversarial_score * 0.20
     )
 
@@ -532,37 +545,37 @@ def calculate_control_effectiveness(intake: dict) -> dict:
     # Kritik kontrol başarısızlıkları — 0.3 altındakiler
     critical_failures = []
     areas = {
-        "human_oversight":    oversight_score,
-        "explainability":     explainability_score,
-        "opt_out":            opt_score,
-        "incident_response":  incident_score,
-        "supply_chain":       supply_score,
-        "testing":            testing_score,
-        "monitoring":         monitoring_score,
-        "bias_testing":       bias_score,
+        "human_oversight": oversight_score,
+        "explainability": explainability_score,
+        "opt_out": opt_score,
+        "incident_response": incident_score,
+        "supply_chain": supply_score,
+        "testing": testing_score,
+        "monitoring": monitoring_score,
+        "bias_testing": bias_score,
         "adversarial_testing": adversarial_score,
     }
     for area, score in areas.items():
         if score < 0.3:
             critical_failures.append({
-                "control_area":   area,
-                "current_score":  round(score, 3),
+                "control_area": area,
+                "current_score": round(score, 3),
                 "required_score": 0.7,
             })
 
     return {
         "design_effectiveness": {
-            "human_oversight_score":     round(oversight_score, 3),
-            "explainability_score":      round(explainability_score, 3),
-            "opt_out_score":             round(opt_score, 3),
-            "incident_response_score":   round(incident_score, 3),
-            "supply_chain_score":        round(supply_score, 3),
-            "composite_design_score":    round(design_composite, 3),
+            "human_oversight_score": round(oversight_score, 3),
+            "explainability_score": round(explainability_score, 3),
+            "opt_out_score": round(opt_score, 3),
+            "incident_response_score": round(incident_score, 3),
+            "supply_chain_score": round(supply_score, 3),
+            "composite_design_score": round(design_composite, 3),
         },
         "operating_effectiveness": {
-            "testing_coverage_score":    round(testing_score, 3),
-            "monitoring_score":          round(monitoring_score, 3),
-            "bias_testing_score":        round(bias_score, 3),
+            "testing_coverage_score": round(testing_score, 3),
+            "monitoring_score": round(monitoring_score, 3),
+            "bias_testing_score": round(bias_score, 3),
             "adversarial_testing_score": round(adversarial_score, 3),
             "composite_operating_score": round(operating_composite, 3),
         },
@@ -608,7 +621,7 @@ def calculate_risk(intake: dict) -> dict:
     acceptable = residual_level not in ["CRITICAL", "HIGH"]
 
     # 7. Deployment recommendation
-    recommendation = _deployment_recommendation(residual_level, intake)
+    recommendation = get_deployment_recommendation(residual_level, intake)
 
     # 8. Top 3 risk drivers
     top_drivers = _top_risk_drivers(harm, likelihood, controls)
@@ -617,41 +630,41 @@ def calculate_risk(intake: dict) -> dict:
     remediation = _remediation_actions(controls, harm, likelihood)
 
     return {
-        "assessment_id":     intake.get("assessment_id"),
-        "timestamp":         datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-        "schema_version":    "1.0",
-        "methodology":       "ISO 31000 | NIST AI RMF | EU AI Act Art. 9",
-        "harm_score":        harm,
-        "likelihood_score":  likelihood,
+        "assessment_id": intake.get("assessment_id"),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "schema_version": "1.0",
+        "methodology": "ISO 31000 | NIST AI RMF | EU AI Act Art. 9",
+        "harm_score": harm,
+        "likelihood_score": likelihood,
         "control_effectiveness": controls,
         "control_gap": {
-            "raw_control_gap":       raw_gap,
+            "raw_control_gap": raw_gap,
             "effective_control_gap": effective_gap,
-            "min_gap_applied":       raw_gap < 0.2,
+            "min_gap_applied": raw_gap < 0.2,
             "critical_control_failures": controls["critical_control_failures"],
         },
         "inherent_risk": {
-            "score":           inherent_score,
-            "level":           inherent_level,
-            "interpretation":  _interpret_inherent(inherent_level, intake),
+            "score": inherent_score,
+            "level": inherent_level,
+            "interpretation": _interpret_inherent(inherent_level, intake),
         },
         "residual_risk": {
-            "score":                  residual_score,
-            "level":                  residual_level,
-            "acceptable":             acceptable,
+            "score": residual_score,
+            "level": residual_level,
+            "acceptable": acceptable,
             "risk_appetite_threshold": 0.40,
-            "interpretation":         _interpret_residual(residual_level, acceptable),
+            "interpretation": _interpret_residual(residual_level, acceptable),
         },
         "risk_summary": {
-            "inherent_risk_score":        inherent_score,
-            "inherent_risk_level":        inherent_level,
+            "inherent_risk_score": inherent_score,
+            "inherent_risk_level": inherent_level,
             "control_effectiveness_score": controls["composite_control_effectiveness"],
-            "control_gap":                effective_gap,
-            "residual_risk_score":        residual_score,
-            "residual_risk_level":        residual_level,
-            "deployment_recommendation":  recommendation,
-            "top_3_risk_drivers":         top_drivers,
-            "top_3_remediation_actions":  remediation,
+            "control_gap": effective_gap,
+            "residual_risk_score": residual_score,
+            "residual_risk_level": residual_level,
+            "deployment_recommendation": recommendation,
+            "top_3_risk_drivers": top_drivers,
+            "top_3_remediation_actions": remediation,
         },
         "methodology_statement": (
             "Risk calculated using Cyber&Legal Risk Engine v2.0. "
@@ -666,31 +679,14 @@ def calculate_risk(intake: dict) -> dict:
 
 def _risk_level(score: float, thresholds: list) -> str:
     """Risk seviyesi — CRITICAL/HIGH/MEDIUM/LOW."""
-    if score >= thresholds[0]:   return "CRITICAL"
-    elif score >= thresholds[1]: return "HIGH"
-    elif score >= thresholds[2]: return "MEDIUM"
-    else:                        return "LOW"
-
-
-def _deployment_recommendation(residual_level: str, intake: dict) -> str:
-    """Deployment tavsiyesi."""
-    sector = intake.get("context", {}).get("sector", "general")
-    use_case = intake.get("context", {}).get("use_case_type", "")
-
-    # Yasaklı kullanım tespiti
-    prohibited_use_cases = ["monitoring_surveillance"]
-    sensitive_data = intake.get("context", {}).get("data_sensitivity", [])
-    if use_case in prohibited_use_cases and "biometric_data" in sensitive_data:
-        return "LEGAL REVIEW REQUIRED — Potential prohibited practice under EU AI Act Art. 5"
-
-    if residual_level == "CRITICAL":
-        return "BLOCKED — Residual risk unacceptable. Major remediation required before deployment."
-    elif residual_level == "HIGH":
-        return "CONDITIONAL — Address critical control gaps before deployment."
-    elif residual_level == "MEDIUM":
-        return "APPROVED WITH CONDITIONS — Implement recommended controls within 90 days."
+    if score >= thresholds[0]:
+        return "CRITICAL"
+    elif score >= thresholds[1]:
+        return "HIGH"
+    elif score >= thresholds[2]:
+        return "MEDIUM"
     else:
-        return "APPROVED — Residual risk within acceptable tolerance. Maintain monitoring."
+        return "LOW"
 
 
 def _top_risk_drivers(harm: dict, likelihood: dict, controls: dict) -> list:
@@ -723,15 +719,15 @@ def _remediation_actions(controls: dict, harm: dict, likelihood: dict) -> list:
     failures = controls.get("critical_control_failures", [])
 
     priority_map = {
-        "human_oversight":     "Implement meaningful human oversight (EU AI Act Art. 14)",
-        "bias_testing":        "Run bias tests: COMPL-AI bbq, winobias, crows_pairs",
+        "human_oversight": "Implement meaningful human oversight (EU AI Act Art. 14)",
+        "bias_testing": "Run bias tests: COMPL-AI bbq, winobias, crows_pairs",
         "adversarial_testing": "Run adversarial tests: OWASP engine + Promptfoo red-team",
-        "monitoring":          "Activate real-time monitoring and audit logging",
-        "explainability":      "Implement explainability for affected persons (EU AI Act Art. 13)",
-        "supply_chain":        "Obtain vendor documentation and conduct due diligence",
-        "incident_response":   "Create incident response plan with complaint mechanism",
-        "opt_out":             "Implement human escalation path for affected persons",
-        "testing":             "Establish regular testing and validation programme",
+        "monitoring": "Activate real-time monitoring and audit logging",
+        "explainability": "Implement explainability for affected persons (EU AI Act Art. 13)",
+        "supply_chain": "Obtain vendor documentation and conduct due diligence",
+        "incident_response": "Create incident response plan with complaint mechanism",
+        "opt_out": "Implement human escalation path for affected persons",
+        "testing": "Establish regular testing and validation programme",
     }
 
     for failure in failures[:3]:
@@ -754,9 +750,9 @@ def _interpret_inherent(level: str, intake: dict) -> str:
     sector = intake.get("context", {}).get("sector", "general")
     interpretations = {
         "CRITICAL": f"Without any safeguards, this AI system poses critical risk in the {sector} sector. Immediate action required.",
-        "HIGH":     f"Without safeguards, this system carries high risk. Robust controls are essential.",
-        "MEDIUM":   f"Moderate inherent risk. Standard controls should be sufficient if properly implemented.",
-        "LOW":      f"Low inherent risk. Basic governance controls recommended.",
+        "HIGH": f"Without safeguards, this system carries high risk. Robust controls are essential.",
+        "MEDIUM": f"Moderate inherent risk. Standard controls should be sufficient if properly implemented.",
+        "LOW": f"Low inherent risk. Basic governance controls recommended.",
     }
     return interpretations.get(level, "Risk level undetermined.")
 
@@ -771,7 +767,7 @@ def _interpret_residual(level: str, acceptable: bool) -> str:
         )
     interpretations = {
         "MEDIUM": "Residual risk is within tolerance but improvement is recommended. Monitor closely.",
-        "LOW":    "Residual risk is well-managed. Maintain current controls and continue monitoring.",
+        "LOW": "Residual risk is well-managed. Maintain current controls and continue monitoring.",
     }
     return interpretations.get(level, "Residual risk acceptable.")
 

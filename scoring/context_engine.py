@@ -9,17 +9,25 @@ NE YAPAR:
 AKIŞ:
     1. Intake verisini al ve doğrula
     2. Evidence layer'ı topla (COMPL-AI, OWASP, LM Eval, Promptfoo)
-    3. Risk Engine'i çalıştır (Harm × Likelihood × Control Gap)
+    3. Risk Engine'i çalıştır
+       - Harm Score
+       - Likelihood Score
+       - Control Effectiveness
+       - Residual Risk
+       - Deployment recommendation (decision.py üzerinden)
     4. Regulatory Mapping'i uygula
     5. Final rapor üret
 
 METODOLOJİ:
     ISO 31000 risk yönetimi
     Regülasyon risk üretmez — riski yorumlar
-    Evidence layer aylık güncellenir — formül sabittir
+    Evidence layer güncellenebilir — risk formülü sabittir
 
-SABIT KALAN: risk formülü, schema versiyonu
-GÜNCELLENEBİLEN: evidence katmanı, regulatory_mapping.json
+SABIT KALAN:
+    risk formülü, schema versiyonu
+
+GÜNCELLENEBİLEN:
+    evidence katmanı, regulatory_mapping.json
 """
 
 import json
@@ -62,14 +70,12 @@ def apply_regulatory_mapping(risk_result: dict, intake: dict, mapping: dict) -> 
     automation = context.get("automation_level", "")
     ai_source = context.get("ai_system_source", "")
     data_sensitivity = context.get("data_sensitivity", [])
-    transparency = context.get("transparency_level", "")
     residual_level = risk_result.get("residual_risk", {}).get("level", "LOW")
     inherent_level = risk_result.get("inherent_risk", {}).get("level", "LOW")
 
-    stakeholders = harm_dims.get("affected_stakeholders", [])
     harm_types = [h.get("type") for h in harm_dims.get("harm_types", [])]
-    rights = harm_dims.get("rights_at_risk", [])
 
+    stakeholders = harm_dims.get("affected_stakeholders", [])
     has_vulnerable = any(s.get("is_vulnerable", False) for s in stakeholders)
     has_children = any(s.get("stakeholder_type") == "children_under_18" for s in stakeholders)
 
@@ -80,22 +86,6 @@ def apply_regulatory_mapping(risk_result: dict, intake: dict, mapping: dict) -> 
     triggered_rules = []
 
     # --- EU AI ACT ---
-    # EU AI Act Annex III — HUKUKI SINIFLANDIRMA
-    # KRITIK: Annex III high-risk sinifi use case bazli belirlenir.
-    # Teknik residual risk skoru bu sinifi YARATMAZ.
-    # Yuksek teknik risk = daha dikkatli olmak gerekir, Annex III degil.
-    # Kaynak: EU AI Act Art. 6 ve Annex III — exhaustive list
-    #
-    # Annex III kapasamindaki use case'ler:
-    #   §1 Biyometrik tanimlama
-    #   §2 Kritik altyapi yonetimi
-    #   §3 Egitim degerlendirme
-    #   §4 Istihdam / HR / performans
-    #   §5 Temel hizmetlere erisim (kredi, sigorta, sosyal haklar)
-    #   §6 Koluk / guvenllik / adalet
-    #   §7 Goc ve sinir kontrolu
-    #   §8 Demokratik surecler
-
     annex3_use_cases = [
         "credit_scoring", "insurance_risk_scoring", "social_benefits_scoring",
         "hr_screening", "performance_management",
@@ -107,7 +97,6 @@ def apply_regulatory_mapping(risk_result: dict, intake: dict, mapping: dict) -> 
     ]
 
     is_annex3 = use_case in annex3_use_cases
-    is_high_risk_sector = sector in ["finance", "healthcare", "legal", "public", "hr_recruitment"]
     technical_risk_note = f"Technical residual risk: {residual_level} — independent of legal classification"
 
     if is_annex3:
@@ -325,16 +314,8 @@ def run_assessment(intake: dict, evidence_overrides: Optional[dict] = None) -> d
     3. Risk Engine çalıştır
     4. Regulatory Mapping uygula
     5. Final rapor üret
-
-    Parametreler:
-        intake           : intake_schema formatında dict
-        evidence_overrides: Test motorlarından gelen skorlar (opsiyonel)
-
-    Döndürür:
-        Tam assessment raporu — PDF'e hazır
     """
 
-    # 1. Evidence varsa intake'e ekle
     if evidence_overrides:
         intake["evidence_layer"] = {
             **intake.get("evidence_layer", {}),
@@ -344,55 +325,52 @@ def run_assessment(intake: dict, evidence_overrides: Optional[dict] = None) -> d
             ).isoformat().replace("+00:00", "Z")
         }
 
-    # 2. Risk Engine
     risk_result = calculate_risk(intake)
 
-    # 3. Regulatory Mapping
     mapping = load_regulatory_mapping()
     regulatory = apply_regulatory_mapping(risk_result, intake, mapping)
 
-    # 4. Final rapor
     report = {
-        "assessment_id":      intake.get("assessment_id"),
-        "organization":       intake.get("context", {}).get("organization"),
-        "ai_system":          intake.get("context", {}).get("use_case_type"),
-        "sector":             intake.get("context", {}).get("sector"),
-        "timestamp":          datetime.datetime.now(
+        "assessment_id": intake.get("assessment_id"),
+        "organization": intake.get("context", {}).get("organization"),
+        "ai_system": intake.get("context", {}).get("use_case_type"),
+        "sector": intake.get("context", {}).get("sector"),
+        "timestamp": datetime.datetime.now(
             datetime.timezone.utc
         ).isoformat().replace("+00:00", "Z"),
-        "schema_version":     "1.0",
-        "methodology":        "ISO 31000 | NIST AI RMF | EU AI Act Art. 9",
+        "schema_version": "1.0",
+        "methodology": "ISO 31000 | NIST AI RMF | EU AI Act Art. 9",
 
         "executive_summary": {
-            "inherent_risk":   risk_result["inherent_risk"]["level"],
-            "residual_risk":   risk_result["residual_risk"]["level"],
-            "acceptable":      risk_result["residual_risk"]["acceptable"],
-            "recommendation":  risk_result["risk_summary"]["deployment_recommendation"],
+            "inherent_risk": risk_result["inherent_risk"]["level"],
+            "residual_risk": risk_result["residual_risk"]["level"],
+            "acceptable": risk_result["residual_risk"]["acceptable"],
+            "recommendation": risk_result["risk_summary"]["deployment_recommendation"],
             "frameworks_triggered": regulatory["frameworks_triggered"],
             "mandatory_actions_count": len(regulatory["mandatory_actions"]),
         },
 
-        "risk_engine":   risk_result,
-        "regulatory":    regulatory,
+        "risk_engine": risk_result,
+        "regulatory": regulatory,
 
         "audit_trail": {
-            "schema_version":        "1.0",
-            "risk_formula":          "Inherent = Harm × Likelihood | Residual = Inherent × max(0.2, Control Gap)",
-            "weights_baseline":      "v1.0 — April 2026",
+            "schema_version": "1.0",
+            "risk_formula": "Inherent = Harm × Likelihood | Residual = Inherent × max(0.2, Control Gap)",
+            "weights_baseline": "v1.0 — April 2026",
             "evidence_included": any([
-                    intake.get("evidence_layer", {}).get("owasp_composite_score") is not None,
-                    intake.get("evidence_layer", {}).get("compl_ai_bias_score") is not None,
-                    intake.get("evidence_layer", {}).get("lm_eval_score") is not None,
-                    intake.get("evidence_layer", {}).get("promptfoo_red_team_score") is not None,
-                ]),
-                "evidence_sources": [
-                    src for src, val in {
-                        "owasp":    intake.get("evidence_layer", {}).get("owasp_composite_score"),
-                        "compl_ai": intake.get("evidence_layer", {}).get("compl_ai_bias_score"),
-                        "lm_eval":  intake.get("evidence_layer", {}).get("lm_eval_score"),
-                        "promptfoo": intake.get("evidence_layer", {}).get("promptfoo_red_team_score"),
-                    }.items() if val is not None
-                ],
+                intake.get("evidence_layer", {}).get("owasp_composite_score") is not None,
+                intake.get("evidence_layer", {}).get("compl_ai_bias_score") is not None,
+                intake.get("evidence_layer", {}).get("lm_eval_score") is not None,
+                intake.get("evidence_layer", {}).get("promptfoo_red_team_score") is not None,
+            ]),
+            "evidence_sources": [
+                src for src, val in {
+                    "owasp": intake.get("evidence_layer", {}).get("owasp_composite_score"),
+                    "compl_ai": intake.get("evidence_layer", {}).get("compl_ai_bias_score"),
+                    "lm_eval": intake.get("evidence_layer", {}).get("lm_eval_score"),
+                    "promptfoo": intake.get("evidence_layer", {}).get("promptfoo_red_team_score"),
+                }.items() if val is not None
+            ],
             "methodology_statement": risk_result.get("methodology_statement"),
         }
     }
@@ -404,29 +382,9 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
     """
     Tam assessment — önce test motorları çalışır, sonra Risk Engine beslenir.
 
-    AKIM:
-        1. Intake alınır
-        2. run_owasp=True ise OWASP Engine çalıştırılır
-           → Model gerçekten prompt injection'a açık mı?
-           → Sonuç: owasp_composite_score (0-1 arası)
-        3. Test sonuçları evidence_layer'a yazılır
-        4. Risk Engine bu kanıtlarla çalışır
-           → evidence_adjustment Likelihood Score'u etkiler
-           → Beyan değil, kanıt bazlı risk
-
-    NEDEN BU AYRIMI YAPIYORUZ:
-        run_assessment()         → beyan bazlı (müşteri ne söylüyor)
-        run_assessment_with_tests() → kanıt bazlı (model gerçekte ne yapıyor)
-        İkisi arasındaki fark = GAP ANALIZI = raporun en değerli kısmı
-
-    SEKTÖRE GÖRE AĞIRLIKLAR (ISO 31000 uyumlu):
-        Finans/Sağlık/Hukuk: OWASP+Promptfoo ağırlıklı (güvenlik kritik)
-        Genel: dengeli dağılım
-        Bu ağırlıklar evidence_adjustment hesaplamasına girer
-
-    Parametreler:
-        intake    : intake_schema formatında dict
-        run_owasp : True ise OWASP Engine çalıştırılır (API key gerekir)
+    Not:
+        Evidence adjustment scoring.py içinde embedded bir alt fonksiyondur.
+        Ayrı servis değildir.
     """
     import sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -434,9 +392,6 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
     evidence_results = {}
     evidence_log = []
 
-    sector = intake.get("context", {}).get("sector", "general")
-
-    # --- OWASP TESTİ ---
     if run_owasp:
         try:
             from engines.owasp_engine import run_owasp_tests, _detect_provider_and_key
@@ -448,24 +403,16 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
                     model=model,
                     provider=provider,
                     api_key=api_key,
-                    limit_per_category=10,  # NIST MEASURE 2.3 — minimum 10 test/kategori
+                    limit_per_category=10,
                     dry_run=False
                 )
 
                 if owasp_result.get("status") == "completed":
                     score = owasp_result.get("composite_score")
                     evidence_results["owasp_composite_score"] = score
-                    evidence_results["owasp_overall_status"]  = owasp_result.get("overall_status")
+                    evidence_results["owasp_overall_status"] = owasp_result.get("overall_status")
                     evidence_results["owasp_critical_failures"] = owasp_result.get("critical_failures", [])
 
-                    # KRITIK: OWASP kaniti beyan override eder.
-                    # Musteri "adversarial test yaptim" dese bile
-                    # gercek OWASP skoru dusukse control operating score dusmeli.
-                    # Kaynak: NIST MEASURE 2.3 — evidence over declaration principle
-                    #
-                    # OWASP >= 0.8 → adversarial test PASS → beyan onaylanir
-                    # OWASP 0.5-0.8 → PARTIAL → adversarial test "basic" sayilir
-                    # OWASP < 0.5  → FAIL → adversarial test yapilmamis sayilir
                     ctrl = intake.get("control_inventory", {})
                     testing = ctrl.get("testing_and_validation", {})
 
@@ -474,14 +421,13 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
                         testing["test_coverage"] = max(
                             testing.get("test_coverage", "none"),
                             "comprehensive",
-                            key=lambda x: ["none","basic","partial","comprehensive"].index(x)
-                            if x in ["none","basic","partial","comprehensive"] else 0
+                            key=lambda x: ["none", "basic", "partial", "comprehensive"].index(x)
+                            if x in ["none", "basic", "partial", "comprehensive"] else 0
                         )
                     elif score >= 0.5:
                         testing["adversarial_testing_performed"] = True
                         testing["test_coverage"] = "partial"
                     else:
-                        # Kotu skor — beyan gecersiz sayilir
                         testing["adversarial_testing_performed"] = False
                         testing["test_coverage"] = "none"
 
@@ -495,31 +441,30 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
                         "test_coverage_set_to": testing["test_coverage"],
                         "reason": "OWASP evidence overrides declaration per NIST MEASURE 2.3"
                     }
+
                     evidence_log.append({
-                        "engine":  "OWASP LLM Top 10",
-                        "score":   score,
-                        "status":  owasp_result.get("overall_status"),
-                        "model":   model,
-                        "note":    "LLM-as-Judge ile 3 katmanlı değerlendirme"
+                        "engine": "OWASP LLM Top 10",
+                        "score": score,
+                        "status": owasp_result.get("overall_status"),
+                        "model": model,
+                        "note": "LLM-as-Judge ile 3 katmanlı değerlendirme"
                     })
             else:
                 evidence_log.append({
                     "engine": "OWASP LLM Top 10",
-                    "score":  None,
+                    "score": None,
                     "status": "skipped",
-                    "note":   "API key bulunamadi"
+                    "note": "API key bulunamadi"
                 })
 
         except Exception as e:
             evidence_log.append({
                 "engine": "OWASP LLM Top 10",
-                "score":  None,
+                "score": None,
                 "status": "error",
-                "note":   str(e)[:100]
+                "note": str(e)[:100]
             })
 
-    # --- EVIDENCE LAYER'A YAZ ---
-    # Mevcut evidence_layer varsa koru, üstüne ekle
     intake["evidence_layer"] = {
         **intake.get("evidence_layer", {}),
         **evidence_results,
@@ -527,25 +472,20 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
             datetime.timezone.utc
         ).isoformat().replace("+00:00", "Z"),
         "evidence_log": evidence_log,
-        "sector": sector,
     }
 
-    # --- RİSK ENGINE ---
     result = run_assessment(intake)
 
-    # --- GAP ANALİZİ EKLE ---
-    # Beyan bazlı skor ile kanıt bazlı skor arasındaki fark
-    # Bu raporun en değerli kısmı
     result["evidence_summary"] = {
-        "engines_run":     [e["engine"] for e in evidence_log],
-        "evidence_log":    evidence_log,
+        "engines_run": [e["engine"] for e in evidence_log],
+        "evidence_log": evidence_log,
         "gap_analysis": {
             "description": (
                 "Difference between what the organization declared "
                 "and what automated testing revealed"
             ),
-            "owasp_score":   evidence_results.get("owasp_composite_score"),
-            "owasp_status":  evidence_results.get("owasp_overall_status"),
+            "owasp_score": evidence_results.get("owasp_composite_score"),
+            "owasp_status": evidence_results.get("owasp_overall_status"),
             "critical_failures": evidence_results.get("owasp_critical_failures", []),
         }
     }
@@ -554,7 +494,6 @@ def run_assessment_with_tests(intake: dict, run_owasp: bool = True) -> dict:
 
 
 if __name__ == "__main__":
-    # Test
     sample = {
         "assessment_id": "CL-20260412-001",
         "context": {
