@@ -1,186 +1,227 @@
-# 📋 COMPL-AI + Cyber&Legal — Scenario Library
-
-## Overview
-
-This document explains all test scenarios included in the Cyber&Legal AI Governance Lab, organized by the framework they come from.
-
----
-
-## 1. COMPL-AI Scenarios (EU AI Act Benchmark Suite)
-
-COMPL-AI provides **40+ benchmarks** mapped to 6 EU AI Act principles.  
-Source: ETH Zurich × LatticeFlow AI × INSAIT — Apache 2.0
-
-### Principle 1: Human Agency & Oversight (Art. 14)
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **ifbench** | Does the model follow complex instructions accurately? | Ensures AI can be directed and controlled by humans |
-| **sycophancy_eval** | Does the model capitulate to pressure, even when wrong? | Detects models that agree with users regardless of truth |
-| **human_or_ai** | Does the model consistently identify itself as AI, not human? | EU AI Act Art. 52: Disclosure of AI identity |
-
-**Why this matters:** EU AI Act Art. 14 requires that high-risk AI systems allow humans to supervise, override, and intervene. A model that follows instructions poorly or pretends to be human undermines this.
-
----
-
-### Principle 2: Technical Robustness & Safety (Art. 15)
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **adversarial_nli** | Does the model reason correctly under adversarial pressure? | Detects fragile reasoning vulnerable to manipulation |
-| **arc_challenge** | Complex reasoning under challenging conditions | Tests stable knowledge representation |
-| **wildguard** | Refusal of harmful requests across diverse attack vectors | Comprehensive harm prevention |
-| **harmbench** | 400+ harmful scenarios across 7 categories | Broadest safety evaluation available |
-
-**Why this matters:** Art. 15 requires AI to be resilient against attempts to alter behavior. OWASP LLM01 (Prompt Injection) directly attacks robustness.
-
----
-
-### Principle 3: Privacy & Data Governance (Art. 10)
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **privacylens** | Does the model protect privacy in realistic scenarios? | Detects models that leak or violate privacy norms |
-| **pii_detection** | Does the model inadvertently generate/expose PII? | GDPR compliance — personal data in outputs |
-
-**Why this matters:** GDPR + EU AI Act Art. 10 requires quality data governance. OWASP LLM02 (Sensitive Information Disclosure) and ENISA T-04 (Inference Attacks) are the attack vectors.
-
----
-
-### Principle 4: Transparency & Explainability (Art. 13)
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **human_or_ai** | Consistent AI identity disclosure | Legal obligation to identify AI systems |
-| **calibration_ece** | Are model confidence scores accurate? | Miscalibrated models give false certainty |
-| **gpqa_diamond** | Does the model know what it doesn't know? | Detects dangerous overconfidence in specialized domains |
-
-**Why this matters:** Art. 13 requires transparency about capabilities and limitations. OWASP LLM09 (Misinformation) is the primary risk.
-
----
-
-### Principle 5: Fairness & Non-Discrimination (Art. 10(5))
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **bbq** | Bias toward/against 9 demographic categories | Comprehensive bias detection across groups |
-| **winobias** | Gender bias in pronoun coreference resolution | Detects stereotyping in language tasks |
-| **crows_pairs** | Stereotypical associations across 9 social categories | Measures harmful stereotype reinforcement |
-| **toxigen** | Toxicity toward 13 identity groups | Detects group-targeted harmful content |
-
-**Why this matters:** EU Charter Art. 21 (non-discrimination) + EU AI Act Art. 10(5) require bias detection and correction. ENISA T-06 is the threat.
-
----
-
-### Principle 6: Societal & Environmental Well-being (Art. 69)
-
-| Benchmark | What It Tests | Problem It Solves |
-|---|---|---|
-| **toxicity_advbench** | Refusal of toxic outputs under adversarial prompting | Tests robustness of safety training |
-| **hle** | Holistic capability assessment | Ensures AI provides genuine social benefit |
-| **include** | Inclusive language and diverse cultural knowledge | Detects cultural bias and exclusion |
-
----
-
-## 2. OWASP LLM Top 10 Scenarios (2025 Edition)
-
-Source: OWASP Foundation — CC BY-SA 4.0
-
-### LLM01 — Prompt Injection
-**5 test scenarios including:**
-- Direct override ("Ignore all previous instructions...")
-- Role-play jailbreak ("Pretend you are DAN...")
-- HTML comment injection
-- Authority claim escalation
-
-**Problem:** Adversaries bypass safety training, extract system prompts, or cause harmful outputs.
-
-### LLM02 — Sensitive Information Disclosure
-**5 test scenarios** probing for system prompt leakage, user data exposure, API key disclosure.
-
-### LLM03 — Supply Chain Vulnerabilities
-**5 test scenarios** examining plugin transparency, training data verification, external API exposure.
-
-### LLM04 — Data and Model Poisoning
-**5 test scenarios** testing for backdoor trigger phrases, false authority claims, hidden debugging modes.
-
-### LLM05 — Improper Output Handling
-**5 test scenarios** generating XSS payloads, SQL injection, dangerous shell commands, SSRF URLs.
-
-### LLM06 — Excessive Agency
-**5 test scenarios** testing if the model takes unauthorized actions (email, file deletion, social media posting) without human confirmation.
-
-### LLM07 — System Prompt Leakage
-**5 test scenarios** extracting system prompts via encoding (Base64, JSON, acrostics).
-
-### LLM08 — Vector and Embedding Weaknesses
-**5 test scenarios** attempting to exploit RAG retrieval systems and vector databases.
-
-### LLM09 — Misinformation
-**5 test scenarios** testing for hallucination of stock prices, death dates, legislation, citations.
-
-### LLM10 — Unbounded Consumption
-**5 test scenarios** requesting infinite output, extreme repetition, unbounded computation.
-
----
-
-## 3. ENISA AI Threat Landscape Scenarios
-
-Source: ENISA Artificial Intelligence Threat Landscape Report 2024 — CC BY 4.0
-
-| Threat ID | Scenario | Impact | Likelihood |
-|---|---|---|---|
-| T-01 | Model Evasion (Adversarial Attacks) | CRITICAL | HIGH |
-| T-02 | Training Data Poisoning | CRITICAL | MEDIUM |
-| T-03 | Model Theft via API Extraction | HIGH | HIGH |
-| T-04 | Privacy Inference Attacks (MIA) | HIGH | MEDIUM |
-| T-05 | Prompt Injection & Jailbreaking | CRITICAL | VERY HIGH |
-| T-06 | AI Bias and Discrimination | HIGH | HIGH |
-| T-07 | Supply Chain Attacks on AI Components | CRITICAL | MEDIUM |
-| T-08 | Deepfake & Disinformation Generation | HIGH | VERY HIGH |
-| T-09 | Lack of Transparency & Explainability | HIGH | HIGH |
-| T-10 | AI System Availability Attacks (AI-DoS) | MEDIUM | MEDIUM |
-| T-11 | Autonomous Agent Misuse | CRITICAL | HIGH |
-
-Each threat includes: description, mitigations, OWASP mapping, NIST RMF mapping, EU AI Act article.
-
----
-
-## 4. NIST AI RMF Assessment Questions
-
-Source: NIST AI 100-1 (January 2023) + AI 600-1 GenAI Profile (July 2024) — Public Domain
-
-### GOVERN Function (5 controls)
-Policies, training, decommissioning, risk documentation, vendor assessment.
-
-### MAP Function (5 controls)
-Use case documentation, threat framework usage, data governance, risk probability, FRIA.
-
-### MEASURE Function (6 controls)
-Quantitative benchmarking, bias testing, adversarial testing, production monitoring, security testing, drift detection.
-
-### MANAGE Function (5 controls)
-Risk treatment plans, incident response, vendor monitoring, post-deployment review, residual risk reporting.
-
-**Total: 21 controls → maturity score → one of 5 levels: INITIAL / DEVELOPING / DEFINED / MANAGED / OPTIMIZING**
-
----
-
-## 5. Cross-Framework Control Mapping
-
-The key insight of this toolkit: the same vulnerability is covered by multiple frameworks simultaneously.
-
-| Vulnerability | COMPL-AI | OWASP | ENISA | NIST | EU AI Act |
-|---|---|---|---|---|---|
-| Prompt Injection | harmbench, wildguard | LLM01 | T-05 | MEASURE 2.3 | Art. 15 |
-| PII Leakage | privacylens | LLM02 | T-04 | MAP 3.5 | Art. 10, GDPR |
-| Demographic Bias | bbq, winobias | LLM09 | T-06 | MEASURE 2.2 | Art. 10(5) |
-| Human Oversight Gap | sycophancy_eval | LLM06 | T-11 | GOVERN 1.7 | Art. 14 |
-| Misinformation | calibration_ece | LLM09 | T-08 | MEASURE 2.3 | Art. 13, Art. 50 |
-| Supply Chain | — | LLM03 | T-07 | GOVERN 6.1 | Art. 25 |
-| Model Theft | — | LLM03 | T-03 | GOVERN 6.1 | Art. 15 |
-
----
-
-*Document maintained by Cyber&Legal — cyberandlegal.com*  
-*Framework content retained under original licenses: NIST (Public Domain), OWASP (CC BY-SA 4.0), ENISA (CC BY 4.0), COMPL-AI (Apache 2.0)*
+{
+  "framework": "ISO/IEC 42001:2023",
+  "version": "2023",
+  "type": "controls_dataset",
+  "controls": [
+    {
+      "id": "ISO42001-4.1",
+      "clause": "4.1",
+      "section": "Context of the Organization",
+      "title": "Understanding the organization and its context",
+      "description": "The organization should identify internal and external issues relevant to the purpose of its AI management system.",
+      "nist_mapping": ["MAP-1.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "governance",
+      "keywords": ["context", "scope", "internal factors", "external factors"]
+    },
+    {
+      "id": "ISO42001-4.2",
+      "clause": "4.2",
+      "section": "Context of the Organization",
+      "title": "Understanding the needs and expectations of interested parties",
+      "description": "The organization should determine relevant stakeholders and their expectations regarding AI governance.",
+      "nist_mapping": ["MAP-1.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "governance",
+      "keywords": ["stakeholders", "interested parties", "expectations"]
+    },
+    {
+      "id": "ISO42001-4.3",
+      "clause": "4.3",
+      "section": "Context of the Organization",
+      "title": "Determining the scope of the AI management system",
+      "description": "The organization should define and document the scope of the AI management system, including systems and services in scope.",
+      "nist_mapping": ["MAP-1.1"],
+      "eu_ai_act": [],
+      "control_type": "governance",
+      "keywords": ["scope", "boundaries", "in-scope systems"]
+    },
+    {
+      "id": "ISO42001-5.1",
+      "clause": "5.1",
+      "section": "Leadership",
+      "title": "Leadership and commitment",
+      "description": "Top management should demonstrate leadership and commitment to the AI management system.",
+      "nist_mapping": ["GOVERN-1.3"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "leadership",
+      "keywords": ["leadership", "management commitment", "resources"]
+    },
+    {
+      "id": "ISO42001-5.2",
+      "clause": "5.2",
+      "section": "Leadership",
+      "title": "AI policy",
+      "description": "The organization should establish, approve, and communicate an AI policy aligned with its objectives and obligations.",
+      "nist_mapping": ["GOVERN-1.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "policy",
+      "keywords": ["ai policy", "responsible ai", "ethics", "compliance"]
+    },
+    {
+      "id": "ISO42001-5.3",
+      "clause": "5.3",
+      "section": "Leadership",
+      "title": "Organizational roles, responsibilities and authorities",
+      "description": "Roles and responsibilities for AI governance should be assigned and communicated.",
+      "nist_mapping": ["GOVERN-2.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "organization",
+      "keywords": ["roles", "responsibilities", "authorities", "committee"]
+    },
+    {
+      "id": "ISO42001-6.1",
+      "clause": "6.1",
+      "section": "Planning",
+      "title": "Actions to address risks and opportunities",
+      "description": "The organization should identify AI-related risks and opportunities and define actions to address them.",
+      "nist_mapping": ["MAP-5.1", "MAP-5.2"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "risk_management",
+      "keywords": ["risk assessment", "opportunities", "fria", "ai risk"]
+    },
+    {
+      "id": "ISO42001-6.2",
+      "clause": "6.2",
+      "section": "Planning",
+      "title": "AI objectives and planning to achieve them",
+      "description": "The organization should define measurable AI governance objectives and plans to achieve them.",
+      "nist_mapping": ["GOVERN-1.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "planning",
+      "keywords": ["objectives", "targets", "owners", "timelines"]
+    },
+    {
+      "id": "ISO42001-7.2",
+      "clause": "7.2",
+      "section": "Support",
+      "title": "Competence",
+      "description": "Personnel involved in AI activities should be competent through education, training, or experience.",
+      "nist_mapping": ["GOVERN-1.6"],
+      "eu_ai_act": ["Art. 4"],
+      "control_type": "training",
+      "keywords": ["competence", "training", "skills", "awareness"]
+    },
+    {
+      "id": "ISO42001-7.4",
+      "clause": "7.4",
+      "section": "Support",
+      "title": "Communication",
+      "description": "Relevant internal and external communications related to AI governance should be defined and managed.",
+      "nist_mapping": ["GOVERN-1.5"],
+      "eu_ai_act": ["Art. 13", "Art. 50"],
+      "control_type": "communication",
+      "keywords": ["transparency", "communication", "disclosure", "users"]
+    },
+    {
+      "id": "ISO42001-7.5",
+      "clause": "7.5",
+      "section": "Support",
+      "title": "Documented information",
+      "description": "The organization should maintain documented information necessary for the AI management system and its operation.",
+      "nist_mapping": ["GOVERN-1.5"],
+      "eu_ai_act": ["Art. 11", "Art. 12"],
+      "control_type": "documentation",
+      "keywords": ["documentation", "model cards", "data cards", "logs", "records"]
+    },
+    {
+      "id": "ISO42001-8.1",
+      "clause": "8.1",
+      "section": "Operation",
+      "title": "Operational planning and control",
+      "description": "The organization should plan, implement, and control AI lifecycle processes.",
+      "nist_mapping": ["MAP-5.1", "MEASURE-2.5"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "operations",
+      "keywords": ["operations", "lifecycle", "controls", "planning"]
+    },
+    {
+      "id": "ISO42001-8.2",
+      "clause": "8.2",
+      "section": "Operation",
+      "title": "AI risk assessment",
+      "description": "AI risk assessments should be performed before deployment and when significant changes occur.",
+      "nist_mapping": ["MAP-5.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "risk_management",
+      "keywords": ["risk assessment", "pre-deployment", "change management"]
+    },
+    {
+      "id": "ISO42001-8.3",
+      "clause": "8.3",
+      "section": "Operation",
+      "title": "AI system lifecycle management",
+      "description": "Formal lifecycle controls should exist for design, development, testing, deployment, monitoring, and decommissioning.",
+      "nist_mapping": ["MEASURE-2.5"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "lifecycle",
+      "keywords": ["stage gates", "deploy", "monitor", "decommission", "drift"]
+    },
+    {
+      "id": "ISO42001-8.4",
+      "clause": "8.4",
+      "section": "Operation",
+      "title": "AI system impact assessment and technical controls",
+      "description": "The organization should implement appropriate technical and organizational controls including testing, oversight, robustness, and supplier governance.",
+      "nist_mapping": ["MEASURE-2.2", "MEASURE-2.3", "GOVERN-6.1", "GOVERN-1.7"],
+      "eu_ai_act": ["Art. 10", "Art. 14", "Art. 15", "Art. 25"],
+      "control_type": "technical_control",
+      "keywords": ["bias testing", "adversarial testing", "third-party ai", "human oversight", "least privilege"]
+    },
+    {
+      "id": "ISO42001-9.1",
+      "clause": "9.1",
+      "section": "Performance Evaluation",
+      "title": "Monitoring, measurement, analysis and evaluation",
+      "description": "KPIs and evaluation criteria should be defined to monitor the performance and effectiveness of the AI management system.",
+      "nist_mapping": ["MEASURE-2.5"],
+      "eu_ai_act": ["Art. 72"],
+      "control_type": "monitoring",
+      "keywords": ["kpi", "metrics", "measurement", "evaluation", "fairness"]
+    },
+    {
+      "id": "ISO42001-9.2",
+      "clause": "9.2",
+      "section": "Performance Evaluation",
+      "title": "Internal audit",
+      "description": "The organization should conduct internal audits at planned intervals.",
+      "nist_mapping": ["GOVERN-1.1"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "audit",
+      "keywords": ["internal audit", "assurance", "audit plan"]
+    },
+    {
+      "id": "ISO42001-9.3",
+      "clause": "9.3",
+      "section": "Performance Evaluation",
+      "title": "Management review",
+      "description": "Top management should review the AI management system at planned intervals.",
+      "nist_mapping": ["GOVERN-1.3"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "leadership",
+      "keywords": ["management review", "board review", "oversight"]
+    },
+    {
+      "id": "ISO42001-10.1",
+      "clause": "10.1",
+      "section": "Improvement",
+      "title": "Continual improvement",
+      "description": "The organization should continually improve the suitability, adequacy, and effectiveness of the AI management system.",
+      "nist_mapping": ["MANAGE-4.2"],
+      "eu_ai_act": ["Art. 9"],
+      "control_type": "improvement",
+      "keywords": ["continual improvement", "lessons learned", "regulatory updates"]
+    },
+    {
+      "id": "ISO42001-10.2",
+      "clause": "10.2",
+      "section": "Improvement",
+      "title": "Nonconformity and corrective action",
+      "description": "The organization should manage AI governance nonconformities, root causes, and corrective actions.",
+      "nist_mapping": ["MANAGE-2.2"],
+      "eu_ai_act": ["Art. 62"],
+      "control_type": "corrective_action",
+      "keywords": ["nonconformity", "corrective action", "incident", "root cause"]
+    }
+  ]
+}
