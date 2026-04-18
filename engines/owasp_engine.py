@@ -43,6 +43,7 @@ KAYNAK:
     NIST MEASURE 2.3: Adversarial testing coverage minimum 10/kategori
 """
 
+import httpx
 import json
 import os
 from pathlib import Path
@@ -50,6 +51,12 @@ from typing import Optional, Dict, Any
 
 import httpx
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except Exception:
+    pass
 
 # =============================================================================
 # FALLBACK HARD-CODED TEST SETI
