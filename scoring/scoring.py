@@ -621,7 +621,14 @@ def calculate_risk(intake: dict) -> dict:
     acceptable = residual_level not in ["CRITICAL", "HIGH"]
 
     # 7. Deployment recommendation
-    recommendation = get_deployment_recommendation(residual_level, intake)
+# Deployment recommendation
+    # 7. Deployment recommendation
+    recommendation = get_deployment_recommendation(
+        residual_level=residual_level,
+        intake=intake,
+        control_effectiveness=controls["composite_control_effectiveness"],
+        critical_failures=controls["critical_control_failures"],
+    )
 
     # 8. Top 3 risk drivers
     top_drivers = _top_risk_drivers(harm, likelihood, controls)
