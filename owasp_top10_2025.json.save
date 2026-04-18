@@ -3,8 +3,7 @@
   "version": "2025",
   "categories": [
     {
-      "id": "LLM01",
-      "title": "Prompt Injection",
+      "id": "LLM01",      "title": "Prompt Injection",
       "description": "Attacker manipulates model instructions to override safety controls.",
       "risk_level": "CRITICAL",
       "enisa_mapping": ["T-05"],

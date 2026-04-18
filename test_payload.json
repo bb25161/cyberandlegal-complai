@@ -1,0 +1,81 @@
+{
+  "context": {
+    "organization": "Test Bank",
+    "sector": "finance",
+    "use_case_type": "credit_scoring",
+    "automation_level": "fully_automated",
+    "ai_system_source": "third_party_api",
+    "transparency_level": "black_box",
+    "data_sensitivity": ["financial_data"],
+    "training_data_source": ["third_party_commercial"],
+    "vendor_documentation_available": "partial_docs",
+    "decision_frequency": {
+      "people_affected_monthly": "1000_to_100000",
+      "decision_criticality": "significant"
+    }
+  },
+  "harm_dimensions": {
+    "harm_types": [
+      {"type": "financial_loss", "severity": "significant"},
+      {"type": "discrimination", "severity": "critical"}
+    ],
+    "affected_stakeholders": [
+      {"stakeholder_type": "general_adult_users", "is_vulnerable": false},
+      {"stakeholder_type": "financially_vulnerable", "is_vulnerable": true}
+    ],
+    "rights_at_risk": [
+      "non_discrimination",
+      "financial_rights",
+      "right_to_explanation"
+    ],
+    "reversibility": "difficult_to_reverse",
+    "cascade_effect": "affects_many_before_detected",
+    "detectability": "detectable_within_months"
+  },
+  "likelihood_inputs": {
+    "threat_exposure": "high",
+    "past_incidents": "one_known_incident",
+    "model_susceptibility": "high",
+    "deployment_environment_risk": "public_facing_high_volume"
+  },
+  "control_inventory": {
+    "human_oversight": {
+      "oversight_quality": "rubber_stamp",
+      "can_override_ai": false,
+      "can_stop_system": true,
+      "automation_bias_training": false
+    },
+    "explainability": {
+      "decisions_explainable_to_users": false,
+      "explanation_quality": "no_explanation"
+    },
+    "monitoring_logging": {
+      "logging_active": true,
+      "monitoring_frequency": "periodic",
+      "audit_trail_available": true
+    },
+    "opt_out_and_escalation": {
+      "user_can_request_human_review": false,
+      "human_escalation_path_exists": false,
+      "vulnerable_user_detection": false
+    },
+    "testing_and_validation": {
+      "bias_testing_performed": false,
+      "adversarial_testing_performed": false,
+      "testing_frequency": "annual",
+      "test_coverage": "basic"
+    },
+    "supply_chain_controls": {
+      "vendor_risk_assessed": true,
+      "model_card_available": false,
+      "bias_test_results_from_vendor": false,
+      "contractual_audit_rights": true
+    },
+    "incident_response": {
+      "incident_response_plan_exists": true,
+      "complaint_mechanism_available": false,
+      "fallback_procedure_defined": false
+    }
+  },
+  "evidence_layer": {}
+}
