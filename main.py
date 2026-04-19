@@ -475,7 +475,7 @@ def assess_risk_full(request: RiskAssessmentRequest):
 
         result = run_assessment_with_tests(
             intake,
-            run_owasp=False,
+            run_owasp=True,
             run_promptfoo=False,
             run_compl_ai=False,
             run_lm_eval=False,
