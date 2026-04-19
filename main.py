@@ -12,28 +12,7 @@ ENDPOINTLER:
     GET  /frameworks       -> Framework listesi
     POST /assess/risk      -> Beyan bazlı risk assessment
     POST /assess/risk/full -> Evidence destekli tam assessment
-"""python3 << 'EOF'
-with open("lab-frontend/src/lib/api.js", "r") as f:
-    content = f.read()
-
-old = '''  const endpoint = form.api_key
-    ? `${API_BASE}/assess/risk/full`
-    : `${API_BASE}/assess/risk`'''
-
-new = '''  const backendHasKey = ["openai","anthropic"].includes(form.model_provider)
-  const hasUserKey = form.api_key && !backendHasKey
-  const endpoint = (hasUserKey || backendHasKey)
-    ? `${API_BASE}/assess/risk/full`
-    : `${API_BASE}/assess/risk`'''
-
-if old in content:
-    content = content.replace(old, new)
-    with open("lab-frontend/src/lib/api.js", "w") as f:
-        f.write(content)
-    print("✅ api.js güncellendi")
-else:
-    print("❌ api.js — satır bulunamadı")
-EOF
+"""
 
 from enum import Enum
 from typing import List, Optional
@@ -496,7 +475,7 @@ def assess_risk_full(request: RiskAssessmentRequest):
 
         result = run_assessment_with_tests(
             intake,
-            run_owasp=True,
+            run_owasp=False,
             run_promptfoo=False,
             run_compl_ai=False,
             run_lm_eval=False,
