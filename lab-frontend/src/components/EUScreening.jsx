@@ -396,7 +396,7 @@ export default function EUScreening({ lang = "en", onComplete }) {
   }
 
   function finalise(a, status) {
-    const role = a["3_role"] || null
+    const role = a["3_role"] || "both"
     const isHigh = a[5] === true
     const gpai = a[7]
     const obligations = buildObligations(status, role, isHigh, gpai, L)
@@ -589,7 +589,7 @@ function DoneScreen({ result, L, lang, onContinue }) {
     gpai_systemic: lang==="tr" ? "GPAI + Sistemik Risk" : "GPAI + Systemic Risk",
   }[status] || status
 
-  const canContinue = !["out_of_scope","exempt","prohibited"].includes(status)
+  const canContinue = !["prohibited"].includes(status)
 
   return (
     <div style={sc.wrap}>
