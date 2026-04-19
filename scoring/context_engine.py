@@ -183,7 +183,7 @@ def run_assessment_with_tests(
     if run_owasp:
         try:
             from engines.owasp_engine import run_owasp_tests
-            result = run_owasp_tests(dry_run=True)
+            result = run_owasp_tests(dry_run=False)
 
             evidence["owasp_composite_score"] = result.get("composite_score")
 
