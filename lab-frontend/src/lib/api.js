@@ -341,11 +341,15 @@ export async function runAssessment(form) {
     ? `${API_BASE}/assess/risk/full`
     : `${API_BASE}/assess/risk`
 
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 270000)
   const res = await fetch(endpoint, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(payload),
+    signal:  controller.signal,
   })
+  clearTimeout(timeoutId)
 
   if (!res.ok) {
     const err = await res.text()
