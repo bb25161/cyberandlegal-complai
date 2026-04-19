@@ -347,13 +347,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cyberandlegal.com",
-        "https://www.cyberandlegal.com",
-        "https://lab.cyberandlegal.com",
-        "http://localhost:3000",
-        "https://cyberandlegal-lab.web.app"
-    ],
+    allow_origins=["*"],
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"]
 )
@@ -481,8 +475,8 @@ def assess_risk_full(request: RiskAssessmentRequest):
 
         result = run_assessment_with_tests(
             intake,
-            run_owasp=True,
-            run_promptfoo=True,
+            run_owasp=False,
+            run_promptfoo=False,
             run_compl_ai=False,
             run_lm_eval=False,
         )
