@@ -437,9 +437,19 @@ function Step5({ t, form, set, lang }) {
         <input style={s.input} value={form.custom_endpoint || ""} onChange={e => set("custom_endpoint", e.target.value)} placeholder={t("f_custom_endpoint_ph")} />
       </F>
     )}
-    {form.model_provider && (
+    {form.model_provider && ["google","huggingface","custom"].includes(form.model_provider) && (
       <F label={t("f_api_key")}>
+        <div style={{fontSize:12,color:"#888",marginBottom:6}}>
+          {form.model_provider === "custom" ? "Özel endpoint için API anahtarınızı girin." : "Bu sağlayıcı için API anahtarınızı girin."}
+        </div>
         <input style={s.input} type="password" value={form.api_key || ""} onChange={e => set("api_key", e.target.value)} placeholder={t("f_api_key_ph")} autoComplete="off" />
+      </F>
+    )}
+    {form.model_provider && ["openai","anthropic"].includes(form.model_provider) && (
+      <F label={t("f_api_key")}>
+        <div style={{fontSize:12,color:"#1D9E75",background:"#E1F5EE",border:"1px solid #9FE1CB",borderRadius:8,padding:"8px 12px"}}>
+          ✓ {form.model_provider === "openai" ? "OpenAI" : "Anthropic"} anahtarı sistem tarafından sağlanıyor — ek giriş gerekmez.
+        </div>
       </F>
     )}
     {form.model_provider && (

@@ -335,7 +335,9 @@ export function buildPayload(form) {
 
 export async function runAssessment(form) {
   const payload  = buildPayload(form)
-  const endpoint = form.api_key
+  const backendHasKey = ["openai","anthropic"].includes(form.model_provider)
+  const hasUserKey = form.api_key && !backendHasKey
+  const endpoint = (hasUserKey || backendHasKey)
     ? `${API_BASE}/assess/risk/full`
     : `${API_BASE}/assess/risk`
 
