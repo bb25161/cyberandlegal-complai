@@ -332,7 +332,8 @@ app.add_middleware(
         "https://cyberandlegal.com",
         "https://www.cyberandlegal.com",
         "https://lab.cyberandlegal.com",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://cyberandlegal-lab.web.app"
     ],
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"]
