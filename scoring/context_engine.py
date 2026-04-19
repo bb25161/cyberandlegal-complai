@@ -40,6 +40,8 @@ def apply_regulatory_mapping(risk_result: dict, intake: dict) -> dict:
     ctrl = intake.get("control_inventory", {})
 
     sector = safe_enum(context.get("sector", "general"))
+    lifecycle_stage = safe_enum(context.get("lifecycle_stage", "deployed"))
+    risk_tolerance = safe_enum(context.get("risk_tolerance", "medium"))
     use_case = safe_enum(context.get("use_case_type", ""))
     automation = safe_enum(context.get("automation_level", ""))
     ai_source = safe_enum(context.get("ai_system_source", ""))

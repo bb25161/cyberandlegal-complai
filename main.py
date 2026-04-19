@@ -147,6 +147,23 @@ class PastIncidentsEnum(str, Enum):
     multiple_known_incidents = "multiple_known_incidents"
 
 
+
+
+class LifecycleStageEnum(str, Enum):
+    development = "development"
+    testing = "testing"
+    pilot = "pilot"
+    deployed = "deployed"
+    decommissioning = "decommissioning"
+
+
+class RiskToleranceEnum(str, Enum):
+    very_low = "very_low"
+    low = "low"
+    medium = "medium"
+    high = "high"
+    very_high = "very_high"
+
 class ModelSusceptibilityEnum(str, Enum):
     low = "low"
     medium = "medium"
@@ -227,6 +244,8 @@ class Context(BaseModel):
     training_data_source: List[str] = []
     vendor_documentation_available: VendorDocumentationEnum = VendorDocumentationEnum.not_applicable
     decision_frequency: DecisionFrequency = DecisionFrequency()
+    lifecycle_stage: Optional[LifecycleStageEnum] = LifecycleStageEnum.deployed
+    risk_tolerance: Optional[RiskToleranceEnum] = RiskToleranceEnum.medium
 
 
 class HarmDimensions(BaseModel):
