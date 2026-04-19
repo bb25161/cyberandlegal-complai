@@ -502,3 +502,14 @@ def deprecated_unified():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+@app.get("/debug/env")
+def debug_env():
+    from engines.env_utils import get_provider_credentials
+    provider, key, model = get_provider_credentials()
+    return {
+        "provider": provider,
+        "key_length": len(key),
+        "model": model,
+        "has_key": bool(key)
+    }
