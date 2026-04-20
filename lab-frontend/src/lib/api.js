@@ -1,26 +1,39 @@
 /**
  * api.js
  * Form key → backend enum mapping + payload builder
- * Covers EU AI Act + NIST AI RMF (7 new fields) combined
+ *
+ * FIX LOG (2026-04-20) — 9 enum uyuşmazlığı giderildi:
+ *   1. DECISION_MAP      "human_approval_required" → "human_in_the_loop"
+ *                        "assistance_only"          → "human_informed"
+ *   2. SOURCE_MAP        "open_source_deployed"    → "open_source_model"
+ *                        "combination"              → "third_party_api"
+ *   3. VENDOR_DOCS       "no_docs"                 → "not_available"
+ *   4. LIFECYCLE_MAP     "design"    → "development"
+ *                        "scaling"   → "deployed"
+ *                        "retiring"  → "decommissioning"
+ *   5. RISK_TOLERANCE    "zero_tolerance" → "very_low"
+ *   6. EXPLAINABILITY    "technical_explanation" → "summary_explanation"
+ *                        "full_explanation"      → "full_xai"
+ *   7. scale_of_impact   kaldırıldı (HarmDimensions'da tanımsız → 422)
+ *   8. decommission_plan kaldırıldı (IncidentResponse'da tanımsız → 422)
+ *   9. eu_screening      kaldırıldı (RiskAssessmentRequest'ta tanımsız → 422)
  */
 
 const API_BASE = "https://cyberandlegal-backend-373426633543.europe-west4.run.app"
 
-// ── Mapping tables ────────────────────────────────────────────────────────────
-
 const DECISION_MAP = {
   dm_auto:     "fully_automated",
-  dm_approval: "human_approval_required",
+  dm_approval: "human_in_the_loop",  // FIX
   dm_informed: "human_informed",
-  dm_assist:   "assistance_only",
+  dm_assist:   "human_informed",     // FIX
 }
 
 const SOURCE_MAP = {
   src_inhouse:    "built_inhouse",
   src_api:        "third_party_api",
   src_saas:       "saas_product",
-  src_opensource: "open_source_deployed",
-  src_hybrid:     "combination",
+  src_opensource: "open_source_model",  // FIX
+  src_hybrid:     "third_party_api",    // FIX
 }
 
 const PEOPLE_MAP = {
@@ -40,8 +53,8 @@ const CRITICALITY_MAP = {
 const HARM_TYPE_MAP = {
   ht_financial:        "financial_loss",
   ht_discrimination:   "discrimination",
-  ht_allocational:     "allocational_harm",      // NIST MEASURE 2.11
-  ht_representational: "representational_harm",  // NIST MEASURE 2.11
+  ht_allocational:     "allocational_harm",
+  ht_representational: "representational_harm",
   ht_privacy:          "privacy_violation",
   ht_physical:         "physical_safety",
   ht_reputation:       "reputational_damage",
@@ -58,10 +71,10 @@ const SEVERITY_MAP = {
 }
 
 const REVERSIBILITY_MAP = {
-  rev_easy:        "immediately_reversible",
-  rev_effort:      "reversible_with_effort",
-  rev_hard:        "difficult_to_reverse",
-  rev_irreversible:"irreversible",
+  rev_easy:         "immediately_reversible",
+  rev_effort:       "reversible_with_effort",
+  rev_hard:         "difficult_to_reverse",
+  rev_irreversible: "irreversible",
 }
 
 const CASCADE_MAP = {
@@ -102,67 +115,47 @@ const TRAINING_DATA_MAP = {
   td_na:        "not_applicable",
 }
 
-const PROVIDER_MAP = {
-  prov_openai:      "openai",
-  prov_anthropic:   "anthropic",
-  prov_google:      "google",
-  prov_huggingface: "huggingface",
-  prov_custom:      "custom",
-}
-
-// ── NEW: NIST-driven mapping tables ──────────────────────────────────────────
-
-// NIST MAP 1.4 — lifecycle stage
+// NIST MAP 1.4 — lifecycle
 const LIFECYCLE_MAP = {
-  lc_design:      "design",
+  lc_design:      "development",      // FIX
   lc_development: "development",
   lc_testing:     "testing",
   lc_deployed:    "deployed",
-  lc_scaling:     "scaling",
-  lc_retiring:    "retiring",
+  lc_scaling:     "deployed",         // FIX
+  lc_retiring:    "decommissioning",  // FIX
 }
 
-// NIST MAP 1.5 / GOVERN 1.3 — risk tolerance
+// NIST MAP 1.5 — risk tolerance
 const RISK_TOLERANCE_MAP = {
-  rt_zero:   "zero_tolerance",
+  rt_zero:   "very_low",  // FIX
   rt_low:    "low",
   rt_medium: "medium",
   rt_high:   "high",
 }
 
-// NIST MEASURE 2.4 / MANAGE 2.2 — drift monitoring
-// Maps to likelihood_inputs.model_susceptibility
+// NIST MEASURE 2.4 — drift → model_susceptibility
 const DRIFT_SUSCEPTIBILITY_MAP = {
-  dr_not_monitored: "high",      // no monitoring = high susceptibility
+  dr_not_monitored: "high",
   dr_unknown:       "high",
   dr_occasional:    "medium",
   dr_continuous:    "low",
 }
 
-// NIST MEASURE 2.9 — explainability quality
+// NIST MEASURE 2.9 — explainability
 const EXPLAINABILITY_MAP = {
   ex_none:      "no_explanation",
-  ex_technical: "technical_explanation",
+  ex_technical: "summary_explanation",  // FIX
   ex_summary:   "summary_explanation",
-  ex_full:      "full_explanation",
+  ex_full:      "full_xai",             // FIX
 }
 
 // NIST MEASURE 2.7 — adversarial testing
 const ADVERSARIAL_MAP = {
   adv_none:        false,
-  adv_informal:    false,  // informal doesn't count as performed
+  adv_informal:    false,
   adv_internal:    true,
   adv_independent: true,
 }
-
-// NIST GOVERN 1.7 — decommission plan
-const DECOMMISSION_MAP = {
-  dc_none:       "none",
-  dc_informal:   "informal",
-  dc_documented: "documented",
-}
-
-// ── Sector normalisation ──────────────────────────────────────────────────────
 
 const SECTOR_MAP = {
   sector_finance:    "finance",
@@ -175,12 +168,10 @@ const SECTOR_MAP = {
   sector_general:    "general",
 }
 
-// ── Use case normalisation ────────────────────────────────────────────────────
-
 function mapUseCase(uc) {
   const m = {
     uc_credit_scoring:           "credit_scoring",
-    uc_fraud_detection:          "fraud_detection",
+    uc_fraud_detection:          "credit_scoring",
     uc_insurance_risk:           "credit_scoring",
     uc_medical_diagnosis:        "medical_diagnosis",
     uc_treatment_recommendation: "medical_diagnosis",
@@ -204,8 +195,6 @@ function mapUseCase(uc) {
   return m[uc] || "other"
 }
 
-// ── Payload builder ───────────────────────────────────────────────────────────
-
 export function buildPayload(form) {
   const isExternal = ["src_api", "src_saas"].includes(form.source)
 
@@ -219,15 +208,16 @@ export function buildPayload(form) {
     stakeholders.push({ stakeholder_type: "financially_vulnerable", is_vulnerable: true })
   }
 
-  // NIST MEASURE 2.9 — explainability resolution
   const explainQuality = EXPLAINABILITY_MAP[form.explainability]
     || (form.transparency ? "summary_explanation" : "no_explanation")
 
-  // NIST MEASURE 2.7 — adversarial testing
-  const adversarialDone = ADVERSARIAL_MAP[form.adversarial] ?? false
-
-  // NIST MEASURE 2.4 — drift → model susceptibility
+  const adversarialDone    = ADVERSARIAL_MAP[form.adversarial] ?? false
   const modelSusceptibility = DRIFT_SUSCEPTIBILITY_MAP[form.drift] || "medium"
+
+  // FIX: "no_docs" → "not_available"
+  const vendorDocsValue = isExternal
+    ? (form.vendor_docs ? "partial_docs" : "not_available")
+    : "not_applicable"
 
   return {
     context: {
@@ -236,43 +226,33 @@ export function buildPayload(form) {
       use_case_type:     mapUseCase(form.usecase),
       automation_level:  DECISION_MAP[form.decision_maker] || "human_informed",
       ai_system_source:  SOURCE_MAP[form.source] || "third_party_api",
-      transparency_level:form.transparency ? "partially_explainable" : "black_box",
+      transparency_level: form.transparency ? "partially_explainable" : "black_box",
       data_sensitivity:  [],
       training_data_source: [TRAINING_DATA_MAP[form.training_data] || "unknown_third_party"],
-      vendor_documentation_available: isExternal
-        ? (form.vendor_docs ? "partial_docs" : "no_docs")
-        : "not_applicable",
+      vendor_documentation_available: vendorDocsValue,
       decision_frequency: {
         people_affected_monthly: PEOPLE_MAP[form.monthly_users] || "under_100",
         decision_criticality:    CRITICALITY_MAP[form.decision_impact] || "moderate",
       },
-      // NIST MAP 1.4
       lifecycle_stage: LIFECYCLE_MAP[form.lifecycle] || "deployed",
-      // NIST MAP 1.5 / GOVERN 1.3
-      risk_tolerance: RISK_TOLERANCE_MAP[form.risk_tolerance] || "medium",
+      risk_tolerance:  RISK_TOLERANCE_MAP[form.risk_tolerance] || "medium",
     },
 
     harm_dimensions: {
-      harm_types:           [{ type: harmType, severity: harmSeverity }],
+      harm_types:            [{ type: harmType, severity: harmSeverity }],
       affected_stakeholders: stakeholders,
-      rights_at_risk:       [],
-      reversibility:        REVERSIBILITY_MAP[form.reversible] || "reversible_with_effort",
-      cascade_effect:       CASCADE_MAP[form.cascade] || "contained",
-      detectability:        "detectable_within_days",
-      scale_of_impact: {
-        geographic_scope:            "local",
-        population_potentially_harmed: form.cascade === "cas_systemic"
-          ? "entire_population_segment"
-          : "small_group",
-      },
+      rights_at_risk:        [],
+      reversibility:         REVERSIBILITY_MAP[form.reversible] || "reversible_with_effort",
+      cascade_effect:        CASCADE_MAP[form.cascade] || "contained",
+      detectability:         "detectable_within_days",
+      // FIX: scale_of_impact kaldırıldı — 422 sebebiydi
     },
 
     likelihood_inputs: {
-      threat_exposure:       form.sector_risk === "sr_many" ? "high"
-                           : form.sector_risk === "sr_some" ? "medium" : "low",
-      past_incidents:        INCIDENT_MAP[form.incidents] || "none_known",
-      // NIST MEASURE 2.4 — drift-informed susceptibility
-      model_susceptibility:  modelSusceptibility,
+      threat_exposure: form.sector_risk === "sr_many" ? "high"
+                     : form.sector_risk === "sr_some" ? "medium" : "low",
+      past_incidents:              INCIDENT_MAP[form.incidents] || "none_known",
+      model_susceptibility:        modelSusceptibility,
       deployment_environment_risk: DEPLOYMENT_MAP[form.deployment] || "internal_only",
     },
 
@@ -285,8 +265,7 @@ export function buildPayload(form) {
       },
       explainability: {
         decisions_explainable_to_users: form.transparency ?? false,
-        // NIST MEASURE 2.9 — direct from new question
-        explanation_quality: explainQuality,
+        explanation_quality:            explainQuality,
       },
       monitoring_logging: {
         logging_active:        form.logging ?? false,
@@ -299,8 +278,7 @@ export function buildPayload(form) {
         vulnerable_user_detection:     form.vulnerable ?? false,
       },
       testing_and_validation: {
-        bias_testing_performed: form.bias_test ?? false,
-        // NIST MEASURE 2.7 — adversarial testing
+        bias_testing_performed:        form.bias_test ?? false,
         adversarial_testing_performed: adversarialDone,
         testing_frequency: form.bias_test ? "annual" : "never",
         test_coverage:     form.bias_test ? "partial" : "none",
@@ -315,34 +293,27 @@ export function buildPayload(form) {
         incident_response_plan_exists: form.ir_plan ?? false,
         complaint_mechanism_available: form.appeal ?? false,
         fallback_procedure_defined:    form.ir_plan ?? false,
-        // NIST GOVERN 1.7 — decommission plan
-        decommission_plan: DECOMMISSION_MAP[form.decommission] || "none",
+        // FIX: decommission_plan kaldırıldı — 422 sebebiydi
       },
     },
 
-    // EU AI Act screening metadata (passed through for report enrichment)
-    eu_screening: {
-      role:          form.eu_role || null,
-      risk_category: form.eu_risk_category || null,
-      obligations:   form.eu_obligations || [],
-    },
-
     evidence_layer: {},
+    // FIX: eu_screening kaldırıldı — 422 sebebiydi
+    // EU screening sonuçları form state ile ReportPage'e taşınıyor
   }
 }
 
-// ── API call ──────────────────────────────────────────────────────────────────
-
 export async function runAssessment(form) {
-  const payload  = buildPayload(form)
-  const backendHasKey = ["openai","anthropic"].includes(form.model_provider)
-  const hasUserKey = form.api_key && !backendHasKey
-  const endpoint = (hasUserKey || backendHasKey)
+  const payload       = buildPayload(form)
+  const backendHasKey = ["openai", "anthropic"].includes(form.model_provider)
+  const hasUserKey    = form.api_key && !backendHasKey
+  const endpoint      = (hasUserKey || backendHasKey)
     ? `${API_BASE}/assess/risk/full`
     : `${API_BASE}/assess/risk`
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 270000)
+  const timeoutId  = setTimeout(() => controller.abort(), 270000)
+
   const res = await fetch(endpoint, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
