@@ -345,6 +345,15 @@ class TechnicalTestProfile(BaseModel):
     note: Optional[str] = None
 
 
+class JurisdictionProfile(BaseModel):
+    registered_country: Optional[str] = None
+    served_countries: List[str] = []
+    role: Optional[str] = None
+
+class RiskAppetite(BaseModel):
+    operational: Optional[str] = None
+    security: Optional[str] = None
+
 class RiskAssessmentRequest(BaseModel):
     assessment_id: Optional[str] = None
     context: Context
@@ -354,6 +363,10 @@ class RiskAssessmentRequest(BaseModel):
     evidence_layer: EvidenceLayer = EvidenceLayer()
     eu_screening: EUScreeningProfile = EUScreeningProfile()
     technical_test_profile: TechnicalTestProfile = TechnicalTestProfile()
+    jurisdiction: JurisdictionProfile = JurisdictionProfile()
+    risk_appetite: RiskAppetite = RiskAppetite()
+    operational_risk_appetite: Optional[str] = None
+    security_risk_appetite: Optional[str] = None
 
 
 # =============================================================================
@@ -451,6 +464,13 @@ def assess_risk(request: RiskAssessmentRequest):
             f"CL-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}"
         )
 
+        # Jurisdiction ve risk appetite normalize et
+        jurisdiction = request.jurisdiction.model_dump()
+        risk_appetite = {
+            "operational": request.operational_risk_appetite or request.risk_appetite.operational,
+            "security": request.security_risk_appetite or request.risk_appetite.security,
+        }
+
         intake = {
             "assessment_id": assessment_id,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -462,6 +482,8 @@ def assess_risk(request: RiskAssessmentRequest):
             "evidence_layer": request.evidence_layer.model_dump(),
             "eu_screening": request.eu_screening.model_dump(),
             "technical_test_profile": request.technical_test_profile.model_dump(),
+            "jurisdiction": jurisdiction,
+            "risk_appetite": risk_appetite,
         }
 
         result = run_assessment(intake)
@@ -492,6 +514,12 @@ def assess_risk_full(request: RiskAssessmentRequest):
             f"CL-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}-FULL"
         )
 
+        jurisdiction = request.jurisdiction.model_dump()
+        risk_appetite = {
+            "operational": request.operational_risk_appetite or request.risk_appetite.operational,
+            "security": request.security_risk_appetite or request.risk_appetite.security,
+        }
+
         intake = {
             "assessment_id": assessment_id,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -503,6 +531,8 @@ def assess_risk_full(request: RiskAssessmentRequest):
             "evidence_layer": request.evidence_layer.model_dump(),
             "eu_screening": request.eu_screening.model_dump(),
             "technical_test_profile": request.technical_test_profile.model_dump(),
+            "jurisdiction": jurisdiction,
+            "risk_appetite": risk_appetite,
         }
 
         scope = (request.technical_test_profile.test_scope or "quick").lower()
