@@ -165,7 +165,7 @@ def run_assessment(intake: dict, evidence_overrides: Optional[dict] = None) -> d
 
 
 # =========================================================
-# FULL (EVIDENCE MODE) — FINAL
+# FULL (EVIDENCE MODE)
 # =========================================================
 
 def run_assessment_with_tests(
@@ -179,40 +179,100 @@ def run_assessment_with_tests(
     evidence = dict(intake.get("evidence_layer") or {})
     log = []
 
+    tech_profile = intake.get("technical_test_profile", {})
+    provider = tech_profile.get("provider") or "openai"
+    model = tech_profile.get("model_name") or "gpt-4o-mini"
+    api_key = tech_profile.get("user_api_key_supplied") or ""
+
     # ================= OWASP =================
     if run_owasp:
         try:
             from engines.owasp_engine import run_owasp_tests
             result = run_owasp_tests(dry_run=False)
-
             evidence["owasp_composite_score"] = result.get("composite_score")
-
             log.append({
                 "engine": "OWASP",
                 "score": result.get("composite_score"),
-                "status": result.get("status")
+                "status": result.get("status"),
+                "timestamp": now_utc(),
             })
-
         except Exception as e:
-            log.append({"engine": "OWASP", "error": str(e)})
+            log.append({"engine": "OWASP", "error": str(e), "timestamp": now_utc()})
 
     # ================= PROMPTFOO =================
     if run_promptfoo:
-        evidence["promptfoo_red_team_score"] = 0.5
+        try:
+            from engines.promptfoo_engine import run_promptfoo
+            result = run_promptfoo(
+                model=model,
+                provider=provider,
+                api_key=api_key or None,
+                num_tests=10,
+                dry_run=False,
+            )
+            score = result.get("composite_score")
+            evidence["promptfoo_red_team_score"] = score
+            log.append({
+                "engine": "Promptfoo",
+                "score": score,
+                "status": result.get("status"),
+                "category_scores": result.get("category_scores"),
+                "timestamp": now_utc(),
+            })
+        except Exception as e:
+            log.append({"engine": "Promptfoo", "error": str(e), "timestamp": now_utc()})
 
     # ================= COMPL-AI =================
     if run_compl_ai:
-        evidence["compl_ai_bias_score"] = 0.4
+        try:
+            from engines.compl_ai_engine import run_compl_ai
+            result = run_compl_ai(
+                model=model,
+                tasks="all",
+                limit=10,
+                api_key=api_key or None,
+                dry_run=False,
+            )
+            score = result.get("composite_score")
+            evidence["compl_ai_bias_score"] = score
+            log.append({
+                "engine": "COMPL-AI",
+                "score": score,
+                "status": result.get("status"),
+                "principle_scores": result.get("principle_scores"),
+                "timestamp": now_utc(),
+            })
+        except Exception as e:
+            log.append({"engine": "COMPL-AI", "error": str(e), "timestamp": now_utc()})
 
     # ================= LM EVAL =================
     if run_lm_eval:
-        evidence["lm_eval_score"] = 0.5
+        try:
+            from engines.lm_eval_engine import run_lm_eval
+            result = run_lm_eval(
+                model=model,
+                benchmark_set="quick",
+                model_type=provider,
+                api_key=api_key or None,
+                dry_run=False,
+            )
+            score = result.get("composite_score")
+            evidence["lm_eval_score"] = score
+            log.append({
+                "engine": "LM Eval",
+                "score": score,
+                "status": result.get("status"),
+                "task_scores": result.get("task_scores"),
+                "timestamp": now_utc(),
+            })
+        except Exception as e:
+            log.append({"engine": "LM Eval", "error": str(e), "timestamp": now_utc()})
 
     evidence["timestamp"] = now_utc()
     if log:
         evidence["technical_test_status"] = "completed_with_available_engines"
     elif evidence.get("technical_test_requested"):
-        evidence["technical_test_status"] = evidence.get("technical_test_status") or "requested_but_no_engine_executed"
+        evidence["technical_test_status"] = "requested_but_no_engine_executed"
 
     intake["evidence_layer"] = evidence
 
