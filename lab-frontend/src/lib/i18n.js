@@ -1,597 +1,156 @@
-export const translations = {
+// i18n_jurisdiction.js
+// Step 0: Jurisdiction + Risk Appetite sorular
+// Her soruya (i) tehdit mapping'i ekli
+
+export const jurisdictionTranslations = {
   en: {
-    // Navigation
-    nav_brand: "Cyber&Legal Lab",
-    nav_logout: "Sign out",
-    nav_lang: "TR",
 
-    // Dashboard
-    dash_title: "AI Risk Assessment",
-    dash_sub: "Evaluate your AI system against EU AI Act, NIST AI RMF, and OWASP standards.",
-    dash_new: "Start new assessment",
-    dash_new_sub: "EU screening + 5 steps · ~12 minutes",
-    dash_euai: "EU AI Act",
-    dash_euai_sub: "Aug 2026 enforcement deadline",
-    dash_nist: "NIST AI RMF",
-    dash_nist_sub: "Risk management framework",
-    dash_owasp: "OWASP LLM Top 10",
-    dash_owasp_sub: "Security vulnerability testing",
+    // ── Step 0 başlık ──
+    step0_title: "Where you operate",
+    step0_sub: "This determines which AI regulations apply to your system",
 
-    // Steps
-    step1_title: "About your AI system",
-    step1_sub: "Tell us what your AI system does and who it affects",
-    step2_title: "Potential harms",
-    step2_sub: "What could go wrong, and how serious would it be?",
-    step3_title: "Risk factors",
-    step3_sub: "How likely is something to go wrong?",
-    step4_title: "Existing safeguards",
-    step4_sub: "What protections do you already have in place?",
-    step5_title: "AI model to test",
-    step5_sub: "We will technically test your AI system for vulnerabilities",
+    // ── Bileşen: Şirket lokasyonu ──
+    f_registered_country: "Where is your organisation registered?",
+    f_registered_country_ph: "Search for a country...",
+    f_registered_country_hint: "Your registration country determines your primary regulatory obligations. An Estonia-registered company is subject to EU AI Act regardless of where it serves customers.",
 
-    // ── Step 1 fields ──
-    f_org: "Organisation name",
-    f_org_ph: "Company or institution name",
-    f_sector: "Sector",
-    f_sector_ph: "Select your sector",
-    f_usecase: "Primary use case",
-    f_usecase_ph: "Select use case",
-    f_usecase_other: "Describe your use case",
-    f_usecase_other_ph: "Briefly describe what your AI system does...",
-    f_description: "Describe your AI system in your own words",
-    f_description_ph: "e.g. We use an AI model to automatically score loan applications. The model analyses applicant data and produces a credit score that determines approval.",
-    f_decision_maker: "Who makes the final decision?",
-    f_decision_maker_ph: "Select decision mode",
-    f_source: "Where does the AI come from?",
-    f_source_ph: "Select source",
-    f_monthly_users: "How many people does it affect per month?",
-    f_monthly_users_ph: "Select range",
-    f_decision_impact: "How serious is a single wrong decision?",
-    f_decision_impact_ph: "Select impact level",
-    f_training_data: "Where does the training data come from?",
-    f_training_data_ph: "Select data source",
+    // ── Bileşen: Hizmet verilen ülkeler ──
+    f_served_countries: "Which countries do you serve with this AI system?",
+    f_served_countries_ph: "Select countries or click on the map...",
+    f_served_countries_hint: "Any country where your AI system's output affects people may create regulatory obligations — even if you are not physically present there.",
 
-    // NIST MAP 1.4 — lifecycle
-    f_lifecycle: "What stage is the AI system currently at?",
-    f_lifecycle_ph: "Select lifecycle stage",
-    f_lifecycle_hint: "NIST AI RMF obligations differ by stage — decommissioning, deployment, and design each require different controls.",
+    // ── Bileşen: Rol ──
+    f_role: "What is your role with this AI system?",
+    f_role_ph: "Select your role",
 
-    // NIST MAP 1.5 / GOVERN 1.3 — risk tolerance
-    f_risk_tolerance: "How much error or harm can your organisation tolerate from this system?",
-    f_risk_tolerance_ph: "Select risk tolerance",
-    f_risk_tolerance_hint: "This determines the threshold for mandatory actions. NIST AI RMF MAP 1.5: risk tolerances should be determined and documented.",
+    role_provider: "Provider — we built or trained this AI system",
+    role_deployer: "Deployer — we use a ready-made AI system from a third party",
+    role_both: "Both — we built it and we use it ourselves",
+    role_importer: "Importer — we bring an AI system from outside the EU into the EU market",
 
-    // ── Step 2 fields ──
-    f_harm_type: "Primary harm type",
-    f_harm_type_ph: "Select harm type",
-    f_harm_severity: "How severe would this harm be?",
-    f_harm_severity_ph: "Select severity",
-    f_vulnerable: "Does this system affect vulnerable groups?",
-    f_vulnerable_hint: "e.g. children, elderly, people with disabilities, financially vulnerable",
-    f_reversible: "Can a wrong decision be reversed?",
-    f_reversible_ph: "Select reversibility",
-    f_cascade: "If the system makes a mistake, how many people are affected before it is noticed?",
-    f_cascade_ph: "Select impact spread",
-    f_transparency: "Are users informed that AI is being used?",
-    f_transparency_hint: "Required under EU AI Act Art. 13",
+    role_provider_info: "EU AI Act Art. 3(3): Providers bear primary obligations — conformity assessment, technical documentation, CE marking.",
+    role_deployer_info: "EU AI Act Art. 3(4): Deployers must implement human oversight, monitor performance, and report incidents.",
+    role_both_info: "Both provider and deployer obligations apply. This is the highest compliance burden.",
+    role_importer_info: "EU AI Act Art. 3(6): Importers must verify provider compliance before placing the system on the EU market.",
 
-    // NIST MEASURE 2.4 / MANAGE 2.2 — drift
-    f_drift: "How well does the system's real-world behaviour match what was expected during testing?",
-    f_drift_ph: "Select drift monitoring level",
-    f_drift_hint: "NIST AI RMF MEASURE 2.4: production behaviour should be monitored and differences from pre-deployment testing documented.",
+    // ── Applicable laws paneli ──
+    applicable_laws_title: "Applicable regulations",
+    applicable_laws_sub: "Based on your registration and service countries",
+    applicable_laws_empty: "Select your countries above to see applicable regulations",
+    applicable_laws_enforcement: "Enforcement",
+    applicable_laws_penalty: "Max penalty",
+    applicable_laws_obligations: "Key obligations",
+    applicable_law_status_active: "In force",
+    applicable_law_status_draft: "Upcoming",
 
-    // ── Step 3 fields ──
-    f_incidents: "Has this system (or a similar one) ever caused a problem?",
-    f_incidents_ph: "Select incident history",
-    f_deployment: "How widely is the system deployed?",
-    f_deployment_ph: "Select deployment scope",
-    f_sector_risk: "Have similar AI systems in your sector caused problems?",
-    f_sector_risk_ph: "Select sector risk level",
+    // ── Risk iştahı — Operasyonel ──
+    f_risk_tolerance: "When this AI system makes a wrong decision, what does your organisation do?",
+    f_risk_tolerance_ph: "Select your response approach",
+    f_risk_tolerance_hint: "ISO 31000 defines risk appetite as the amount and type of risk an organisation is willing to accept. NIST AI RMF MAP 1.5 requires this to be documented before deployment.",
 
-    // ── Step 4 fields ──
-    f_override: "Can a human overrule the AI decision?",
-    f_override_hint: "Required under EU AI Act Art. 14",
-    f_oversight: "How rigorous is human oversight?",
-    f_oversight_ph: "Select oversight quality",
-    f_appeal: "Can the affected person challenge the decision?",
-    f_logging: "Are decisions logged and monitored?",
-    f_bias_test: "Has bias testing been performed?",
-    f_vendor_docs: "Have you received technical documentation from the AI provider?",
-    f_vendor_docs_hint: "Only shown if using external AI",
-    f_ir_plan: "Is there an incident response plan?",
-    f_tech_docs: "Has technical documentation been prepared (model card)?",
-    f_bias_training: "Have staff received training on automation bias?",
-    f_eu_aware: "Are you aware of your EU AI Act obligations from August 2026?",
+    rt_stop: "Stop — we halt the system and manually review every affected case",
+    rt_escalate: "Escalate — the affected person is flagged for human review before any action is taken",
+    rt_sample: "Sample — we investigate a proportion of errors and act if rates exceed our threshold",
+    rt_monitor: "Monitor — we track performance trends and intervene if overall quality degrades",
 
-    // NIST MEASURE 2.9 — explainability quality
-    f_explainability: "When the system makes a decision, can that decision be explained?",
-    f_explainability_ph: "Select explanation level",
-    f_explainability_hint: "NIST AI RMF MEASURE 2.9: AI model output should be explainable and interpretable within its operational context.",
+    rt_stop_info: "Regulation: EU AI Act Art. 14 (human oversight) · NIST GOVERN 1.3\nRisk signal: Strongest control posture. Requires robust audit logging and escalation paths.",
+    rt_escalate_info: "Regulation: EU AI Act Art. 14 · ISO 31000 risk response\nRisk signal: Good practice for high-criticality decisions. Requires clear escalation procedures.",
+    rt_sample_info: "Regulation: NIST MEASURE 2.5 (performance monitoring)\nRisk signal: Acceptable for lower-risk systems. Define and document your error threshold.",
+    rt_monitor_info: "Regulation: NIST MANAGE 2.2\nRisk signal: Weakest oversight posture. Acceptable only for minimal-risk applications with no individual impact.",
 
-    // NIST MEASURE 2.7 / GOVERN 4.1 — adversarial testing
-    f_adversarial: "Has the system been tested under adversarial or stress conditions (red-teaming)?",
-    f_adversarial_ph: "Select adversarial testing level",
-    f_adversarial_hint: "NIST AI RMF MEASURE 2.7: red-teaming and adversarial testing should be conducted and documented.",
+    // ── Risk iştahı — Güvenlik ──
+    f_security_tolerance: "If this AI system caused a data breach or security incident, what is your organisation's position?",
+    f_security_tolerance_ph: "Select your security risk appetite",
+    f_security_tolerance_hint: "Security risk appetite is often stricter than operational risk appetite. A breach can trigger regulatory investigations, reputational harm, and licence revocation — separate from the AI decision risk.",
 
-    // NIST GOVERN 1.7 / MANAGE 2.4 — decommission plan
-    f_decommission: "Is there a documented plan to safely shut down or retire this system?",
-    f_decommission_ph: "Select decommission readiness",
-    f_decommission_hint: "NIST AI RMF GOVERN 1.7: processes for decommissioning and phasing out AI systems safely should exist.",
+    sec_zero: "Zero tolerance — one incident triggers immediate shutdown and a full independent audit",
+    sec_low: "Low — any incident triggers formal review; system is paused pending investigation",
+    sec_medium: "Medium — we follow our standard incident response process and report as required",
+    sec_high: "High — incidents are expected in production; we manage them as they arise",
 
-    // ── Step 5 fields ──
-    f_model_provider: "Which AI provider does your system use?",
-    f_model_provider_ph: "Select provider",
-    f_model_name: "Model name",
-    f_model_name_ph: "e.g. gpt-4o, claude-3-5-sonnet, gemini-1.5-pro",
-    f_api_key: "API key (for testing only — not stored)",
-    f_api_key_ph: "sk-... or your API key",
-    f_test_scope: "Test scope",
-    f_custom_endpoint: "Custom endpoint URL",
-    f_custom_endpoint_ph: "https://your-model-endpoint.com/v1",
+    sec_zero_info: "Regulation: ISO 27001 · NIST CSF · EU AI Act Art. 62 (serious incident reporting)\nRisk signal: Best practice. Required posture for healthcare, finance, and critical infrastructure.",
+    sec_low_info: "Regulation: EU AI Act Art. 62 · GDPR Art. 33\nRisk signal: Strong posture. Formal review process must be documented and tested.",
+    sec_medium_info: "Regulation: Sector-specific breach notification laws may impose stricter timelines.\nRisk signal: Acceptable for medium-risk systems. Review incident response plan annually.",
+    sec_high_info: "Regulation: ENISA threat landscape — high tolerance increases attack surface exposure.\nRisk signal: Regulatory exposure risk. Sectors like finance and health typically require lower tolerance.",
 
-    // ── Sector options ──
-    sector_finance:    "Finance & Banking",
-    sector_healthcare: "Healthcare",
-    sector_legal:      "Legal",
-    sector_public:     "Public Administration",
-    sector_hr:         "HR & Recruitment",
-    sector_education:  "Education",
-    sector_energy:     "Energy",
-    sector_general:    "Other",
-
-    // ── Use case options ──
-    uc_credit_scoring:        "Credit scoring",
-    uc_fraud_detection:       "Fraud detection",
-    uc_insurance_risk:        "Insurance risk scoring",
-    uc_medical_diagnosis:     "Medical diagnosis",
-    uc_treatment_recommendation: "Treatment recommendation",
-    uc_medical_device:        "Medical device control",
-    uc_legal_research:        "Legal research assistance",
-    uc_contract_review:       "Contract review",
-    uc_legal_interpretation:  "Legal decision support",
-    uc_benefits_scoring:      "Social benefits scoring",
-    uc_border_control:        "Migration & border control",
-    uc_law_enforcement:       "Law enforcement",
-    uc_hr_screening:          "CV & candidate screening",
-    uc_performance:           "Employee performance management",
-    uc_education_assessment:  "Student assessment",
-    uc_content_generation:    "Content generation",
-    uc_recommendation:        "Recommendation system",
-    uc_chatbot:               "Customer service chatbot",
-    uc_process_automation:    "Process automation",
-    uc_monitoring:            "Monitoring & surveillance",
-    uc_other:                 "Other (describe below)",
-
-    // ── Decision maker options ──
-    dm_auto:     "The system decides automatically — no human involved",
-    dm_approval: "The system recommends, a human approves before action",
-    dm_informed: "The system decides, the affected person is notified",
-    dm_assist:   "The system only provides information — humans decide",
-
-    // ── AI source options ──
-    src_inhouse:    "Built in-house",
-    src_api:        "External API (e.g. OpenAI, Anthropic)",
-    src_saas:       "Ready-made SaaS product",
-    src_opensource: "Open-source model",
-    src_hybrid:     "Combination",
-
-    // ── Monthly users options ──
-    mu_under100: "Fewer than 100",
-    mu_100_1k:   "100 – 1,000",
-    mu_1k_100k:  "1,000 – 100,000",
-    mu_over100k: "More than 100,000",
-
-    // ── Decision impact options ──
-    di_low:          "Low — minor inconvenience",
-    di_moderate:     "Moderate — some impact on daily life",
-    di_significant:  "Significant — major financial or personal impact",
-    di_life_changing:"Life-changing — affects employment, health, freedom",
-
-    // ── Lifecycle options (NIST MAP 1.4) ──
-    lc_design:      "Design — planning and requirements phase",
-    lc_development: "Development — building or training the model",
-    lc_testing:     "Testing / validation — pre-deployment",
-    lc_deployed:    "Active deployment — in production use",
-    lc_scaling:     "Scaling — expanding scope or users",
-    lc_retiring:    "Retiring — being phased out",
-
-    // ── Risk tolerance options (NIST MAP 1.5) ──
-    rt_zero:       "Zero tolerance — any error is unacceptable",
-    rt_low:        "Low — very limited errors acceptable",
-    rt_medium:     "Medium — occasional errors acceptable if caught quickly",
-    rt_high:       "High — experimental, errors expected and managed",
-
-    // ── Harm type options (extended with NIST MEASURE 2.11) ──
-    ht_financial:       "Financial loss",
-    ht_discrimination:  "Discrimination or unfair treatment",
-    ht_allocational:    "Allocational harm — unfair distribution of resources or opportunities",
-    ht_representational:"Representational harm — groups misrepresented or erased by the system",
-    ht_privacy:         "Privacy violation",
-    ht_physical:        "Physical harm",
-    ht_reputation:      "Reputational damage",
-    ht_psychological:   "Psychological harm",
-    ht_rights:          "Legal rights violation",
-
-    // ── Severity options ──
-    sev_negligible: "Negligible — easily recovered",
-    sev_minor:      "Minor — temporary impact",
-    sev_moderate:   "Moderate — noticeable harm",
-    sev_significant:"Significant — lasting harm",
-    sev_critical:   "Critical — severe or permanent harm",
-
-    // ── Reversibility options ──
-    rev_easy:        "Easily reversed",
-    rev_effort:      "Reversible with effort",
-    rev_hard:        "Difficult to reverse",
-    rev_irreversible:"Irreversible",
-
-    // ── Cascade options ──
-    cas_single:   "Only the individual directly affected",
-    cas_small:    "A small group before it is noticed",
-    cas_many:     "Many people — takes time to detect",
-    cas_systemic: "Systemic — widespread before detection",
-
-    // ── Drift options (NIST MEASURE 2.4) ──
-    dr_not_monitored: "Not monitored — we do not track drift",
-    dr_unknown:       "Unknown — we are not sure",
-    dr_occasional:    "Occasionally checked — informal review",
-    dr_continuous:    "Continuously monitored — automated alerts in place",
-
-    // ── Incident history ──
-    inc_none:     "No known issues",
-    inc_near:     "Near-miss — almost caused a problem but was caught",
-    inc_once:     "Yes, once",
-    inc_multiple: "Yes, multiple times",
-
-    // ── Deployment options ──
-    dep_sandbox:  "Closed / test environment",
-    dep_internal: "Internal use only",
-    dep_limited:  "Limited public access",
-    dep_public:   "Widely available to the public",
-
-    // ── Sector risk ──
-    sr_unknown: "Not aware of any",
-    sr_no:      "No known issues in this sector",
-    sr_some:    "Yes, a few cases",
-    sr_many:    "Yes, frequently",
-
-    // ── Oversight options ──
-    ov_none:    "No oversight",
-    ov_rubber:  "Symbolic approval — rubber stamp",
-    ov_partial: "Partial review — some cases checked",
-    ov_full:    "Full meaningful review — all cases checked",
-
-    // ── Training data options ──
-    td_own:       "Our own historical data",
-    td_public:    "Public datasets",
-    td_third:     "Third-party commercial data",
-    td_scraped:   "Internet-scraped data",
-    td_synthetic: "Synthetic / generated data",
-    td_unknown:   "Unknown",
-    td_na:        "Not applicable",
-
-    // ── Explainability options (NIST MEASURE 2.9) ──
-    ex_none:      "No — decisions cannot be explained",
-    ex_technical: "Technical explanation only — for internal team",
-    ex_summary:   "Summary explanation — affected person receives a brief reason",
-    ex_full:      "Full explanation — complete reasoning provided to affected person",
-
-    // ── Adversarial testing options (NIST MEASURE 2.7) ──
-    adv_none:        "No adversarial testing performed",
-    adv_informal:    "Informal internal stress tests only",
-    adv_internal:    "Formal red-team testing by internal team",
-    adv_independent: "Independent third-party red-team / penetration testing",
-
-    // ── Decommission options (NIST GOVERN 1.7) ──
-    dc_none:        "No plan exists",
-    dc_informal:    "General exit plan — not documented",
-    dc_documented:  "Documented decommission procedure with responsibilities assigned",
-
-    // ── Test scope options ──
-    ts_quick:    "Quick — ~5 min · Security basics",
-    ts_standard: "Standard — ~20 min · Security + bias",
-    ts_full:     "Full — ~60 min · All benchmarks",
-
-    // ── Provider options ──
-    prov_openai:      "OpenAI (GPT)",
-    prov_anthropic:   "Anthropic (Claude)",
-    prov_google:      "Google (Gemini)",
-    prov_huggingface: "HuggingFace (open-source)",
-    prov_custom:      "Custom endpoint",
-
-    // ── Buttons ──
-    btn_back:        "Back",
-    btn_next:        "Next",
-    btn_submit:      "Generate report",
-    btn_submitting:  "Analysing...",
-
-    yes: "Yes",
-    no:  "No",
-
-    err_api: "Connection error. Please try again.",
+    // ── Harita açıklamaları ──
+    map_legend_registered: "Registered country",
+    map_legend_served: "Served country",
+    map_legend_high_reg: "High regulation",
+    map_legend_medium_reg: "Medium regulation",
+    map_legend_low_reg: "Low / voluntary",
+    map_hover_click: "Click a country to add to served countries",
+    map_hover_regulation: "Click to see regulations",
   },
 
-  // ─────────────────────────────────────────────────────────
   tr: {
-    nav_brand:  "Cyber&Legal Lab",
-    nav_logout: "Çıkış yap",
-    nav_lang:   "EN",
+    step0_title: "Faaliyet gösterdiğiniz yerler",
+    step0_sub: "Bu, sisteminize hangi AI düzenlemelerinin uygulandığını belirler",
 
-    dash_title: "Yapay Zeka Risk Değerlendirmesi",
-    dash_sub:   "AI sisteminizi EU AI Act, NIST AI RMF ve OWASP standartlarına göre değerlendirin.",
-    dash_new:     "Yeni değerlendirme başlat",
-    dash_new_sub: "AB taraması + 5 adım · ~12 dakika",
-    dash_euai:     "AB Yapay Zeka Yasası",
-    dash_euai_sub: "Ağustos 2026 uygulama tarihi",
-    dash_nist:     "NIST AI RMF",
-    dash_nist_sub: "Risk yönetimi çerçevesi",
-    dash_owasp:    "OWASP LLM Top 10",
-    dash_owasp_sub:"Güvenlik açığı testi",
+    f_registered_country: "Organizasyonunuz nerede tescilli?",
+    f_registered_country_ph: "Ülke ara...",
+    f_registered_country_hint: "Tescil ülkeniz birincil düzenleyici yükümlülüklerinizi belirler. Estonya'da tescilli bir şirket, müşterilere nerede hizmet verdiğinden bağımsız olarak AB Yapay Zeka Yasası'na tabidir.",
 
-    step1_title: "AI sisteminiz hakkında",
-    step1_sub:   "AI sisteminizin ne yaptığını ve kimi etkilediğini anlatın",
-    step2_title: "Olası zararlar",
-    step2_sub:   "Ne yanlış gidebilir ve ne kadar ciddi olur?",
-    step3_title: "Risk faktörleri",
-    step3_sub:   "Bir sorun çıkma ihtimali ne kadar?",
-    step4_title: "Mevcut önlemler",
-    step4_sub:   "Hangi koruma mekanizmalarınız var?",
-    step5_title: "Test edilecek AI modeli",
-    step5_sub:   "AI sisteminizi güvenlik açıkları için teknik olarak test edeceğiz",
+    f_served_countries: "Bu AI sistemiyle hangi ülkelere hizmet veriyorsunuz?",
+    f_served_countries_ph: "Ülke seçin veya haritaya tıklayın...",
+    f_served_countries_hint: "AI sisteminizin çıktısının insanları etkilediği her ülke düzenleyici yükümlülükler yaratabilir — orada fiziksel varlığınız olmasa bile.",
 
-    // Step 1
-    f_org:              "Organizasyon adı",
-    f_org_ph:           "Şirket veya kurum adı",
-    f_sector:           "Sektör",
-    f_sector_ph:        "Sektörünüzü seçin",
-    f_usecase:          "Birincil kullanım amacı",
-    f_usecase_ph:       "Kullanım amacını seçin",
-    f_usecase_other:    "Kullanım amacınızı açıklayın",
-    f_usecase_other_ph: "AI sisteminizin ne yaptığını kısaca açıklayın...",
-    f_description:      "AI sisteminizi kendi cümlelerinizle açıklayın",
-    f_description_ph:   "örn. Kredi başvurularını otomatik olarak puanlayan bir AI modeli kullanıyoruz. Model başvuru sahibinin verilerini analiz ederek onay kararını belirleyen bir kredi skoru üretiyor.",
-    f_decision_maker:   "Nihai kararı kim veriyor?",
-    f_decision_maker_ph:"Karar modunu seçin",
-    f_source:           "AI sistemi nereden temin edildi?",
-    f_source_ph:        "Kaynak seçin",
-    f_monthly_users:    "Aylık kaç kişiyi etkiliyor?",
-    f_monthly_users_ph: "Aralık seçin",
-    f_decision_impact:  "Tek bir hatalı karar ne kadar ciddi?",
-    f_decision_impact_ph:"Etki seviyesi seçin",
-    f_training_data:    "Eğitim verisi nereden geliyor?",
-    f_training_data_ph: "Veri kaynağı seçin",
+    f_role: "Bu AI sistemiyle rolünüz nedir?",
+    f_role_ph: "Rolünüzü seçin",
 
-    f_lifecycle:      "AI sistemi şu an hangi aşamada?",
-    f_lifecycle_ph:   "Aşama seçin",
-    f_lifecycle_hint: "NIST AI RMF yükümlülükleri aşamaya göre farklılaşır — emeklilik, dağıtım ve tasarım aşamalarının her biri farklı kontroller gerektirir.",
+    role_provider: "Sağlayıcı — bu AI sistemini biz geliştirdik veya eğittik",
+    role_deployer: "Dağıtıcı — üçüncü taraftan hazır bir AI sistemi kullanıyoruz",
+    role_both: "Her ikisi — geliştirdik ve kendimiz kullanıyoruz",
+    role_importer: "İthalatçı — AB dışından bir AI sistemini AB pazarına getiriyoruz",
 
-    f_risk_tolerance:      "Organizasyonunuz bu sistemden kaynaklanan hataları ne ölçüde tolere edebilir?",
-    f_risk_tolerance_ph:   "Risk toleransı seçin",
-    f_risk_tolerance_hint: "Zorunlu aksiyon eşiğini belirler. NIST AI RMF MAP 1.5: risk toleransları belirlenmeli ve belgelenmelidir.",
+    role_provider_info: "AB Yapay Zeka Yasası Madde 3(3): Sağlayıcılar birincil yükümlülükleri taşır — uygunluk değerlendirmesi, teknik belgeleme, CE işareti.",
+    role_deployer_info: "AB Yapay Zeka Yasası Madde 3(4): Dağıtıcılar insan gözetimini uygulamalı, performansı izlemeli ve olayları raporlamalıdır.",
+    role_both_info: "Hem sağlayıcı hem dağıtıcı yükümlülükleri geçerlidir. Bu en yüksek uyum yüküdür.",
+    role_importer_info: "AB Yapay Zeka Yasası Madde 3(6): İthalatçılar, sistemi AB pazarına sunmadan önce sağlayıcı uyumluluğunu doğrulamalıdır.",
 
-    // Step 2
-    f_harm_type:        "Birincil zarar türü",
-    f_harm_type_ph:     "Zarar türü seçin",
-    f_harm_severity:    "Bu zarar ne kadar şiddetli olur?",
-    f_harm_severity_ph: "Şiddet seçin",
-    f_vulnerable:       "Bu sistem savunmasız grupları etkiliyor mu?",
-    f_vulnerable_hint:  "örn. çocuklar, yaşlılar, engelliler, finansal açıdan kırılganlar",
-    f_reversible:       "Hatalı bir karar geri alınabilir mi?",
-    f_reversible_ph:    "Geri alınabilirlik seçin",
-    f_cascade:          "Sistem hata yaparsa, fark edilene kadar kaç kişi etkilenir?",
-    f_cascade_ph:       "Yayılma etkisini seçin",
-    f_transparency:     "Kullanıcılar yapay zeka kullandığınızdan haberdar ediliyor mu?",
-    f_transparency_hint:"AB Yapay Zeka Yasası Md. 13 kapsamında zorunlu",
+    applicable_laws_title: "Geçerli düzenlemeler",
+    applicable_laws_sub: "Tescil ve hizmet ülkelerinize göre",
+    applicable_laws_empty: "Geçerli düzenlemeleri görmek için yukarıdan ülkelerinizi seçin",
+    applicable_laws_enforcement: "Yürürlük",
+    applicable_laws_penalty: "Azami ceza",
+    applicable_laws_obligations: "Temel yükümlülükler",
+    applicable_law_status_active: "Yürürlükte",
+    applicable_law_status_draft: "Yakında",
 
-    f_drift:      "Sistemin gerçek dünya davranışı, test aşamasındaki beklentilerle ne ölçüde örtüşüyor?",
-    f_drift_ph:   "Sapma izleme seviyesini seçin",
-    f_drift_hint: "NIST AI RMF MEASURE 2.4: üretim ortamındaki davranış izlenmeli ve ön-dağıtım testinden sapmalar belgelenmelidir.",
+    f_risk_tolerance: "Bu AI sistemi yanlış bir karar verdiğinde organizasyonunuz ne yapar?",
+    f_risk_tolerance_ph: "Yaklaşımınızı seçin",
+    f_risk_tolerance_hint: "ISO 31000, risk iştahını bir organizasyonun kabul etmeye hazır olduğu risk miktarı ve türü olarak tanımlar. NIST AI RMF MAP 1.5, bunun dağıtımdan önce belgelenmesini gerektirir.",
 
-    // Step 3
-    f_incidents:     "Bu sistem (veya benzeri bir sistem) daha önce sorun yarattı mı?",
-    f_incidents_ph:  "Olay geçmişini seçin",
-    f_deployment:    "Sistem ne kadar geniş bir kitleye açık?",
-    f_deployment_ph: "Dağıtım kapsamını seçin",
-    f_sector_risk:   "Sektörünüzdeki benzer AI sistemleri sorun yaşadı mı?",
-    f_sector_risk_ph:"Sektör risk seviyesini seçin",
+    rt_stop: "Dur — sistemi durdurur ve etkilenen her vakayı manuel olarak inceleriz",
+    rt_escalate: "Eskalasyon — etkilenen kişi herhangi bir işlem yapılmadan önce insan incelemesine alınır",
+    rt_sample: "Örnekleme — hataların bir kısmını araştırır, eşiği aşarsa müdahale ederiz",
+    rt_monitor: "İzleme — performans trendlerini takip eder, genel kalite düşerse müdahale ederiz",
 
-    // Step 4
-    f_override:          "İnsan, AI kararını geçersiz kılabiliyor mu?",
-    f_override_hint:     "AB Yapay Zeka Yasası Md. 14 kapsamında zorunlu",
-    f_oversight:         "İnsan denetimi ne kadar titiz?",
-    f_oversight_ph:      "Denetim kalitesini seçin",
-    f_appeal:            "Etkilenen kişi karara itiraz edebiliyor mu?",
-    f_logging:           "Kararlar kaydediliyor ve izleniyor mu?",
-    f_bias_test:         "Önyargı (bias) testi yapıldı mı?",
-    f_vendor_docs:       "AI sağlayıcısından teknik dokümantasyon aldınız mı?",
-    f_vendor_docs_hint:  "Yalnızca harici AI kullanılıyorsa gösterilir",
-    f_ir_plan:           "Bir olay müdahale planınız var mı?",
-    f_tech_docs:         "Teknik dokümantasyon hazırlandı mı? (model kartı)",
-    f_bias_training:     "Çalışanlara otomasyon önyargısı eğitimi verildi mi?",
-    f_eu_aware:          "Ağustos 2026'dan itibaren geçerli AB AI Yasası yükümlülüklerinizden haberdar mısınız?",
+    rt_stop_info: "Düzenleme: AB YZ Yasası Md. 14 · NIST GOVERN 1.3\nRisk sinyali: En güçlü kontrol duruşu. Sağlam denetim kaydı ve eskalasyon yolları gerektirir.",
+    rt_escalate_info: "Düzenleme: AB YZ Yasası Md. 14 · ISO 31000\nRisk sinyali: Yüksek kritikliğe sahip kararlar için iyi uygulama. Net eskalasyon prosedürleri gerektirir.",
+    rt_sample_info: "Düzenleme: NIST MEASURE 2.5\nRisk sinyali: Düşük riskli sistemler için kabul edilebilir. Hata eşiğinizi tanımlayın ve belgeleyin.",
+    rt_monitor_info: "Düzenleme: NIST MANAGE 2.2\nRisk sinyali: En zayıf gözetim duruşu. Yalnızca bireysel etkisi olmayan minimal riskli uygulamalar için kabul edilebilir.",
 
-    f_explainability:      "Sistem bir karar verdiğinde bu kararın gerekçesi açıklanabiliyor mu?",
-    f_explainability_ph:   "Açıklama seviyesini seçin",
-    f_explainability_hint: "NIST AI RMF MEASURE 2.9: AI model çıktıları operasyonel bağlamda açıklanabilir ve yorumlanabilir olmalıdır.",
+    f_security_tolerance: "Bu AI sistemi bir veri ihlali veya güvenlik olayına yol açsaydı organizasyonunuzun tutumu ne olurdu?",
+    f_security_tolerance_ph: "Güvenlik risk iştahınızı seçin",
+    f_security_tolerance_hint: "Güvenlik risk iştahı genellikle operasyonel risk iştahından daha katıdır. Bir ihlal, AI karar riskinden bağımsız olarak düzenleyici soruşturmaları, itibar zararını ve lisans iptalini tetikleyebilir.",
 
-    f_adversarial:      "Sistem üzerinde saldırı simülasyonu veya stres testi (kırmızı takım) yapıldı mı?",
-    f_adversarial_ph:   "Test seviyesini seçin",
-    f_adversarial_hint: "NIST AI RMF MEASURE 2.7: kırmızı takım ve saldırı testleri yapılmalı ve belgelenmelidir.",
+    sec_zero: "Sıfır tolerans — tek bir olay sistemi kapatır ve tam bağımsız denetim başlatır",
+    sec_low: "Düşük — herhangi bir olay resmi inceleme başlatır; soruşturma tamamlanana kadar sistem duraklatılır",
+    sec_medium: "Orta — standart olay müdahale sürecimizi izler ve gerektiği gibi raporlarız",
+    sec_high: "Yüksek — üretimdeki olaylar beklenir; ortaya çıktıkça yönetiriz",
 
-    f_decommission:      "Sistemi güvenli şekilde devre dışı bırakmak veya emekliye ayırmak için belgelenmiş bir plan var mı?",
-    f_decommission_ph:   "Hazırlık seviyesini seçin",
-    f_decommission_hint: "NIST AI RMF GOVERN 1.7: AI sistemlerini güvenli şekilde devre dışı bırakma prosedürleri mevcut olmalıdır.",
+    sec_zero_info: "Düzenleme: ISO 27001 · NIST CSF · AB YZ Yasası Md. 62\nRisk sinyali: En iyi uygulama. Sağlık, finans ve kritik altyapı için zorunlu duruş.",
+    sec_low_info: "Düzenleme: AB YZ Yasası Md. 62 · GDPR Md. 33\nRisk sinyali: Güçlü duruş. Resmi inceleme süreci belgelenmeli ve test edilmelidir.",
+    sec_medium_info: "Düzenleme: Sektöre özgü ihlal bildirimi yasaları daha sıkı süreler getirebilir.\nRisk sinyali: Orta riskli sistemler için kabul edilebilir. Olay müdahale planını yıllık gözden geçirin.",
+    sec_high_info: "Düzenleme: ENISA tehdit ortamı — yüksek tolerans saldırı yüzeyini artırır.\nRisk sinyali: Düzenleyici maruz kalma riski. Finans ve sağlık gibi sektörler genellikle daha düşük tolerans gerektirir.",
 
-    // Step 5
-    f_model_provider:    "Sisteminiz hangi AI sağlayıcısını kullanıyor?",
-    f_model_provider_ph: "Sağlayıcı seçin",
-    f_model_name:        "Model adı",
-    f_model_name_ph:     "örn. gpt-4o, claude-3-5-sonnet, gemini-1.5-pro",
-    f_api_key:           "API anahtarı (yalnızca test için — kaydedilmez)",
-    f_api_key_ph:        "sk-... veya API anahtarınız",
-    f_test_scope:        "Test kapsamı",
-    f_custom_endpoint:   "Özel endpoint URL'si",
-    f_custom_endpoint_ph:"https://model-endpointiniz.com/v1",
-
-    sector_finance:    "Finans & Bankacılık",
-    sector_healthcare: "Sağlık",
-    sector_legal:      "Hukuk",
-    sector_public:     "Kamu Yönetimi",
-    sector_hr:         "İK & İşe Alım",
-    sector_education:  "Eğitim",
-    sector_energy:     "Enerji",
-    sector_general:    "Diğer",
-
-    uc_credit_scoring:           "Kredi skorlama",
-    uc_fraud_detection:          "Dolandırıcılık tespiti",
-    uc_insurance_risk:           "Sigorta risk skorlaması",
-    uc_medical_diagnosis:        "Tıbbi teşhis",
-    uc_treatment_recommendation: "Tedavi önerisi",
-    uc_medical_device:           "Medikal cihaz kontrolü",
-    uc_legal_research:           "Hukuki araştırma asistanı",
-    uc_contract_review:          "Sözleşme inceleme",
-    uc_legal_interpretation:     "Hukuki karar desteği",
-    uc_benefits_scoring:         "Sosyal yardım skorlaması",
-    uc_border_control:           "Göç & sınır kontrolü",
-    uc_law_enforcement:          "Kolluk kuvvetleri",
-    uc_hr_screening:             "CV & aday değerlendirme",
-    uc_performance:              "Çalışan performans yönetimi",
-    uc_education_assessment:     "Öğrenci değerlendirme",
-    uc_content_generation:       "İçerik üretimi",
-    uc_recommendation:           "Öneri sistemi",
-    uc_chatbot:                  "Müşteri hizmetleri chatbotu",
-    uc_process_automation:       "Süreç otomasyonu",
-    uc_monitoring:               "İzleme & gözetleme",
-    uc_other:                    "Diğer (aşağıda açıklayın)",
-
-    dm_auto:     "Sistem otomatik karar verir — insan müdahalesi yok",
-    dm_approval: "Sistem önerir, insan onaylar",
-    dm_informed: "Sistem karar verir, etkilenen kişi bilgilendirilir",
-    dm_assist:   "Sistem yalnızca bilgi sunar — kararı insan verir",
-
-    src_inhouse:    "Şirket içi geliştirme",
-    src_api:        "Harici API (örn. OpenAI, Anthropic)",
-    src_saas:       "Hazır SaaS ürün",
-    src_opensource: "Açık kaynak model",
-    src_hybrid:     "Karma",
-
-    mu_under100: "100'den az",
-    mu_100_1k:   "100 – 1.000",
-    mu_1k_100k:  "1.000 – 100.000",
-    mu_over100k: "100.000'den fazla",
-
-    di_low:           "Düşük — küçük bir rahatsızlık",
-    di_moderate:      "Orta — günlük yaşamda bazı etkiler",
-    di_significant:   "Önemli — ciddi mali veya kişisel etkiler",
-    di_life_changing: "Hayat değiştiren — istihdam, sağlık, özgürlük etkiler",
-
-    lc_design:      "Tasarım — planlama ve gereksinimler aşaması",
-    lc_development: "Geliştirme — model oluşturma veya eğitim",
-    lc_testing:     "Test / doğrulama — dağıtım öncesi",
-    lc_deployed:    "Aktif kullanım — üretim ortamında",
-    lc_scaling:     "Ölçeklendirme — kapsam veya kullanıcı sayısı artırılıyor",
-    lc_retiring:    "Emeklilik — sistem aşamalı olarak kapatılıyor",
-
-    rt_zero:   "Sıfır tolerans — hiçbir hata kabul edilemez",
-    rt_low:    "Düşük — çok sınırlı hata kabul edilebilir",
-    rt_medium: "Orta — hızlı yakalanırsa ara sıra hata kabul edilebilir",
-    rt_high:   "Yüksek — deneysel, hatalar bekleniyor ve yönetiliyor",
-
-    ht_financial:        "Mali kayıp",
-    ht_discrimination:   "Ayrımcılık veya adaletsiz muamele",
-    ht_allocational:     "Dağıtımsal zarar — kaynakların veya fırsatların adaletsiz dağıtımı",
-    ht_representational: "Temsil zararı — grupların sistemde yanlış veya eksik temsili",
-    ht_privacy:          "Gizlilik ihlali",
-    ht_physical:         "Fiziksel zarar",
-    ht_reputation:       "İtibar zararı",
-    ht_psychological:    "Psikolojik zarar",
-    ht_rights:           "Hukuki hak ihlali",
-
-    sev_negligible:  "Önemsiz — kolayca atlatılır",
-    sev_minor:       "Küçük — geçici etki",
-    sev_moderate:    "Orta — fark edilir zarar",
-    sev_significant: "Önemli — kalıcı zarar",
-    sev_critical:    "Kritik — ağır veya kalıcı zarar",
-
-    rev_easy:        "Kolayca geri alınabilir",
-    rev_effort:      "Çabayla geri alınabilir",
-    rev_hard:        "Geri alması zor",
-    rev_irreversible:"Geri alınamaz",
-
-    cas_single:   "Yalnızca doğrudan etkilenen kişi",
-    cas_small:    "Küçük bir grup, hızla fark edilir",
-    cas_many:     "Çok kişi — tespit etmek zaman alır",
-    cas_systemic: "Sistemik — yaygın etki, geç fark edilir",
-
-    dr_not_monitored: "İzlenmiyor — sapma takibi yapmıyoruz",
-    dr_unknown:       "Bilinmiyor — emin değiliz",
-    dr_occasional:    "Ara sıra kontrol ediliyor — gayri resmi inceleme",
-    dr_continuous:    "Sürekli izleniyor — otomatik uyarı sistemi mevcut",
-
-    inc_none:     "Bilinen bir sorun yok",
-    inc_near:     "Neredeyse sorun çıktı ama önlendi",
-    inc_once:     "Evet, bir kez",
-    inc_multiple: "Evet, birden fazla kez",
-
-    dep_sandbox:  "Kapalı / test ortamı",
-    dep_internal: "Sadece şirket içi",
-    dep_limited:  "Sınırlı kamuya açık",
-    dep_public:   "Geniş kitleye açık",
-
-    sr_unknown: "Haberdar değilim",
-    sr_no:      "Bu sektörde bilinen sorun yok",
-    sr_some:    "Evet, birkaç vaka",
-    sr_many:    "Evet, sık sık",
-
-    ov_none:    "Denetim yok",
-    ov_rubber:  "Sembolik onay — formalite",
-    ov_partial: "Kısmi inceleme — bazı vakalar kontrol ediliyor",
-    ov_full:    "Tam anlamlı denetim — tüm vakalar inceleniyor",
-
-    td_own:       "Kendi geçmiş verilerimiz",
-    td_public:    "Kamuya açık veri setleri",
-    td_third:     "Üçüncü taraf ticari veri",
-    td_scraped:   "İnternetten toplanan veri",
-    td_synthetic: "Sentetik / oluşturulmuş veri",
-    td_unknown:   "Bilinmiyor",
-    td_na:        "Uygulanamaz",
-
-    ex_none:      "Hayır — kararlar açıklanamıyor",
-    ex_technical: "Yalnızca teknik açıklama — iç ekip için",
-    ex_summary:   "Özet açıklama — etkilenen kişiye kısa gerekçe sunuluyor",
-    ex_full:      "Tam açıklama — etkilenen kişiye eksiksiz gerekçe sağlanıyor",
-
-    adv_none:        "Saldırı testi yapılmadı",
-    adv_informal:    "Yalnızca gayri resmi iç stres testleri",
-    adv_internal:    "İç ekip tarafından resmi kırmızı takım testi",
-    adv_independent: "Bağımsız üçüncü taraf kırmızı takım / sızma testi",
-
-    dc_none:       "Plan yok",
-    dc_informal:   "Genel çıkış planı var — belgelenmemiş",
-    dc_documented: "Sorumlular atanmış, belgelenmiş devre dışı bırakma prosedürü",
-
-    ts_quick:    "Hızlı — ~5 dk · Temel güvenlik",
-    ts_standard: "Standart — ~20 dk · Güvenlik + önyargı",
-    ts_full:     "Tam — ~60 dk · Tüm testler",
-
-    prov_openai:      "OpenAI (GPT)",
-    prov_anthropic:   "Anthropic (Claude)",
-    prov_google:      "Google (Gemini)",
-    prov_huggingface: "HuggingFace (açık kaynak)",
-    prov_custom:      "Özel endpoint",
-
-    btn_back:       "Geri",
-    btn_next:       "Devam",
-    btn_submit:     "Raporu oluştur",
-    btn_submitting: "Analiz ediliyor...",
-
-    yes: "Evet",
-    no:  "Hayır",
-
-    err_api: "Bağlantı hatası. Lütfen tekrar deneyin.",
+    map_legend_registered: "Tescil ülkesi",
+    map_legend_served: "Hizmet ülkesi",
+    map_legend_high_reg: "Yüksek düzenleme",
+    map_legend_medium_reg: "Orta düzenleme",
+    map_legend_low_reg: "Düşük / gönüllü",
+    map_hover_click: "Hizmet ülkesi eklemek için tıklayın",
+    map_hover_regulation: "Düzenlemeleri görmek için tıklayın",
   }
-}
-
-export function useT(lang) {
-  return (key) => translations[lang]?.[key] ?? translations.en[key] ?? key
 }
