@@ -363,6 +363,15 @@ export function buildPayload(form) {
 
     evidence_layer: buildEvidenceStatus(form),
 
+    jurisdiction: {
+      registered_country: form.registered_country || null,
+      served_countries: form.served_countries || [],
+      role: form.role || null,
+    },
+
+    operational_risk_appetite: form.risk_tolerance || null,
+    security_risk_appetite: form.security_tolerance || null,
+
     eu_screening: {
       role: form.eu_role || null,
       risk_category: form.eu_risk_category || null,
