@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth"
 import { runAssessment, normalizeProvider } from "../lib/api"
 import { useT } from "../lib/i18n"
 import EUScreening from "../components/EUScreening"
+import JurisdictionStep from "./JurisdictionStep"
 
 const SECTOR_USE_CASES = {
   sector_finance:    ["uc_credit_scoring","uc_fraud_detection","uc_insurance_risk","uc_recommendation","uc_chatbot","uc_process_automation","uc_other"],
@@ -16,8 +17,8 @@ const SECTOR_USE_CASES = {
   sector_general:    ["uc_content_generation","uc_recommendation","uc_chatbot","uc_process_automation","uc_monitoring","uc_other"],
 }
 
-const STEPS_EN = ["About your AI","Potential harms","Risk factors","Safeguards","AI model test"]
-const STEPS_TR = ["AI Sisteminiz","Olası zararlar","Risk faktörleri","Önlemler","Model testi"]
+const STEPS_EN = ["Where you operate","About your AI","Potential harms","Risk factors","Safeguards","AI model test"]
+const STEPS_TR = ["Faaliyet alanı","AI Sisteminiz","Olası zararlar","Risk faktörleri","Önlemler","Model testi"]
 
 export default function AssessmentPage({ lang = "en", onToggleLang }) {
   const t = useT(lang)
@@ -133,11 +134,12 @@ export default function AssessmentPage({ lang = "en", onToggleLang }) {
               </div>
 
               <div style={s.fields}>
-                {step === 0 && <Step1 t={t} form={form} set={set} useCases={useCases} />}
-                {step === 1 && <Step2 t={t} form={form} set={set} />}
-                {step === 2 && <Step3 t={t} form={form} set={set} />}
-                {step === 3 && <Step4 t={t} form={form} set={set} isExternal={isExternal} />}
-                {step === 4 && <Step5 t={t} form={form} set={set} lang={lang} />}
+                {step === 0 && <JurisdictionStep form={form} set={set} lang={lang} />}
+                {step === 1 && <Step1 t={t} form={form} set={set} useCases={useCases} />}
+                {step === 2 && <Step2 t={t} form={form} set={set} />}
+                {step === 3 && <Step3 t={t} form={form} set={set} />}
+                {step === 4 && <Step4 t={t} form={form} set={set} isExternal={isExternal} />}
+                {step === 5 && <Step5 t={t} form={form} set={set} lang={lang} />}
               </div>
 
               {error && <div style={s.errorBox}>{error}</div>}
