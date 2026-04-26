@@ -1,0 +1,7 @@
+git clone https://github.com/bb25161/cyberandlegal-complai.git
+cd cyberandlegal-complai
+mkdir -p .github/workflows
+# Verdiğiniz deploy.yml içeriğini .github/workflows/deploy.yml dosyasına kopyalayın
+git add .github/workflows/deploy.yml
+git commit -m "Add GitHub Actions deploy workflow for Google Cloud"
+git push origin main
