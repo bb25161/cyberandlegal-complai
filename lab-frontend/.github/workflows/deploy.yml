@@ -1,35 +1,7 @@
-name: Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Authenticate to GCP (OIDC)
-        uses: google-github-actions/auth@v1
-        with:
-          workload_identity_provider: "projects/373426633543/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-          service_account: "github-deployer@cyberandlegal-lab.iam.gserviceaccount.com"
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v1
-
-      - name: Deploy Backend
-        run: |
-          gcloud builds submit --tag europe-west4-docker.pkg.dev/cyberandlegal-lab/backend/api
-          
-          gcloud run deploy cyberandlegal-backend \
-            --image europe-west4-docker.pkg.dev/cyberandlegal-lab/backend/api \
-            --region europe-west4 \
-            --platform managed \
-            --allow-unauthenticated
+git clone https://github.com/bb25161/cyberandlegal-complai.git
+cd cyberandlegal-complai
+mkdir -p .github/workflows
+# Verdiğiniz deploy.yml içeriğini .github/workflows/deploy.yml dosyasına kopyalayın
+git add .github/workflows/deploy.yml
+git commit -m "Add GitHub Actions deploy workflow for Google Cloud"
+git push origin main
