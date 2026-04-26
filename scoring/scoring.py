@@ -302,6 +302,7 @@ def calculate_likelihood_score(intake: dict) -> dict:
             ),
             "evidence_timestamp": evidence.get("evidence_timestamp"),
             "sector_used_for_weighting": context.get("sector", "general"),
+            "_raw_threat_exposure": round(threat_score, 3),
         }
     }
 
@@ -584,6 +585,46 @@ def calculate_control_effectiveness(intake: dict) -> dict:
     }
 
 
+def _apply_risk_appetite(
+    control_effectiveness: float,
+    threat_exposure_score: float,
+    risk_appetite: dict
+) -> tuple:
+    """
+    ISO 31000 / CISSP: Risk iştahını kontrol etkinliği ve tehdit maruziyetine uygula.
+
+    Operasyonel risk iştahı → control_effectiveness'i etkiler:
+      rt_stop:     +0.15 (güçlü insan denetimi — NIST GOVERN 1.3)
+      rt_escalate: +0.08 (iyi pratik — EU AI Act Art. 14)
+      rt_sample:    0.00 (nötr)
+      rt_monitor:  -0.10 (zayıf denetim — NIST MANAGE 2.2 gap)
+
+    Güvenlik risk iştahı → threat_exposure'u etkiler:
+      sec_zero:   -0.12 (sıfır tolerans = güçlü güvenlik duruşu)
+      sec_low:    -0.06 (düşük tolerans)
+      sec_medium:  0.00 (nötr)
+      sec_high:   +0.10 (yüksek tolerans = artan saldırı yüzeyi)
+    """
+    op_adj = {
+        "rt_stop":     +0.15,
+        "rt_escalate": +0.08,
+        "rt_sample":    0.00,
+        "rt_monitor":  -0.10,
+    }.get(risk_appetite.get("operational"), 0.0)
+
+    sec_adj = {
+        "sec_zero":   -0.12,
+        "sec_low":    -0.06,
+        "sec_medium":  0.00,
+        "sec_high":   +0.10,
+    }.get(risk_appetite.get("security"), 0.0)
+
+    adj_control = round(min(1.0, max(0.0, control_effectiveness + op_adj)), 3)
+    adj_threat  = round(min(1.0, max(0.0, threat_exposure_score + sec_adj)), 3)
+
+    return adj_control, adj_threat, op_adj, sec_adj
+
+
 def calculate_risk(intake: dict) -> dict:
     """
     Ana risk hesaplama fonksiyonu.
@@ -592,37 +633,62 @@ def calculate_risk(intake: dict) -> dict:
     Control Gap = max(0.2, 1 - Control Effectiveness)
     Residual Risk = Inherent Risk × Control Gap
 
+    Risk iştahı (ISO 31000 / CISSP):
+      - Operasyonel → control_effectiveness'i etkiler
+      - Güvenlik    → threat_exposure'u etkiler
+
     Kaynak: ISO 31000, NIST AI RMF, EU AI Act Art. 9.
     """
+    risk_appetite = intake.get("risk_appetite", {})
 
     # 1. Harm Score
     harm = calculate_harm_score(intake)
 
-    # 2. Likelihood Score
+    # 2. Likelihood Score (ham değer, risk appetite öncesi)
     likelihood = calculate_likelihood_score(intake)
 
-    # 3. Control Effectiveness
+    # 3. Control Effectiveness (ham değer)
     controls = calculate_control_effectiveness(intake)
 
-    # 4. Inherent Risk
+    # 4. Risk Appetite Adjustment (ISO 31000)
+    raw_control_eff = controls["composite_control_effectiveness"]
+    raw_threat_exp  = likelihood["likelihood_breakdown"].get("_raw_threat_exposure", 0.5)
+
+    adj_control, adj_threat, op_adj, sec_adj = _apply_risk_appetite(
+        raw_control_eff, raw_threat_exp, risk_appetite
+    )
+
+    # Adjusted değerleri likelihood'a yansıt
+    if sec_adj != 0.0:
+        old_likelihood = likelihood["composite_likelihood_score"]
+        threat_weight = 0.25  # likelihood içindeki threat_exposure ağırlığı
+        likelihood["composite_likelihood_score"] = round(
+            max(0.0, min(1.0, old_likelihood + sec_adj * threat_weight)), 3
+        )
+        likelihood["likelihood_breakdown"]["security_appetite_adjustment"] = sec_adj
+
+    # Adjusted control effectiveness
+    if op_adj != 0.0:
+        controls["composite_control_effectiveness"] = adj_control
+        controls["risk_appetite_adjustment"] = op_adj
+
+    # 5. Inherent Risk
     inherent_score = round(
         harm["composite_harm_score"] * likelihood["composite_likelihood_score"],
         3
     )
     inherent_level = _risk_level(inherent_score, thresholds=[0.75, 0.50, 0.25])
 
-    # 5. Control Gap
+    # 6. Control Gap
     raw_gap = round(1 - controls["composite_control_effectiveness"], 3)
     effective_gap = round(max(0.2, raw_gap), 3)
 
-    # 6. Residual Risk
+    # 7. Residual Risk
     residual_score = round(inherent_score * effective_gap, 3)
     residual_level = _risk_level(residual_score, thresholds=[0.60, 0.40, 0.20])
     acceptable = residual_level not in ["CRITICAL", "HIGH"]
 
-    # 7. Deployment recommendation
-# Deployment recommendation
-    # 7. Deployment recommendation
+    # 8. Deployment recommendation
     recommendation = get_deployment_recommendation(
         residual_level=residual_level,
         intake=intake,
@@ -630,11 +696,20 @@ def calculate_risk(intake: dict) -> dict:
         critical_failures=controls["critical_control_failures"],
     )
 
-    # 8. Top 3 risk drivers
+    # 9. Top 3 risk drivers
     top_drivers = _top_risk_drivers(harm, likelihood, controls)
 
-    # 9. Top 3 remediation actions
+    # 10. Top 3 remediation actions
     remediation = _remediation_actions(controls, harm, likelihood)
+
+    # Risk appetite özeti
+    appetite_summary = {
+        "operational": risk_appetite.get("operational"),
+        "security":    risk_appetite.get("security"),
+        "operational_adjustment": op_adj,
+        "security_adjustment":    sec_adj,
+        "applied": op_adj != 0.0 or sec_adj != 0.0,
+    }
 
     return {
         "assessment_id": intake.get("assessment_id"),
@@ -662,6 +737,7 @@ def calculate_risk(intake: dict) -> dict:
             "risk_appetite_threshold": 0.40,
             "interpretation": _interpret_residual(residual_level, acceptable),
         },
+        "risk_appetite_applied": appetite_summary,
         "risk_summary": {
             "inherent_risk_score": inherent_score,
             "inherent_risk_level": inherent_level,
@@ -677,9 +753,9 @@ def calculate_risk(intake: dict) -> dict:
             "Risk calculated using Cyber&Legal Risk Engine v2.0. "
             "Inherent Risk = Harm Score x Likelihood Score. "
             "Residual Risk = Inherent Risk x max(0.2, Control Gap). "
+            "Risk appetite (ISO 31000) adjusts control effectiveness and threat exposure. "
             "Regulatory frameworks interpret risk scores — they do not produce them. "
-            "Formula and schema frozen at v1.0. "
-            "Evidence layer updated monthly."
+            "Formula and schema frozen at v1.0. Evidence layer updated monthly."
         ),
     }
 
