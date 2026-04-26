@@ -12,6 +12,13 @@ RUN apt-get update && apt-get install -y \
 RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
     | tar -xJ -C /usr/local --strip-components=1
 
+# COMPL-AI kurulumu
+RUN pip install uv
+RUN git clone https://github.com/compl-ai/compl-ai.git /app/compl-ai
+RUN cd /app/compl-ai && uv sync
+ENV COMPLAI_PATH=/app/compl-ai
+
+
 RUN npm install -g promptfoo
 
 COPY requirements.txt .
