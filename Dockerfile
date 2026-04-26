@@ -5,12 +5,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     curl \
     git \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 kur (promptfoo için gerekli)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Node.js 22 — doğrudan binary (nodesource'dan daha hızlı)
+RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
+    | tar -xJ -C /usr/local --strip-components=1
 
 RUN npm install -g promptfoo
 
