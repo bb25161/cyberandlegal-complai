@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Authenticate to GCP
+      - name: Authenticate to GCP (OIDC)
         uses: google-github-actions/auth@v1
         with:
           workload_identity_provider: "projects/373426633543/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
