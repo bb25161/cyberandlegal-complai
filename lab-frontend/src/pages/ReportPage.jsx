@@ -63,6 +63,11 @@ export default function ReportPage({ lang = "en", onToggleLang }) {
 
   const euRiskCfg = EU_RISK_CFG[euRiskKey] || null
   const euRoleLabel = { provider:"Provider", deployer:"Deployer", both:"Both", importer:"Importer" }
+  const evidence = result.evidence_summary || {}
+  const evidenceScores = evidence.scores || {}
+  const technicalStatus = evidenceScores.technical_test_status || (evidence.engines?.length ? "completed_with_available_engines" : "not_requested")
+  const technicalProvider = evidenceScores.technical_test_provider || form?.model_provider || null
+  const engineRows = evidence.engines || []
 
   return (
     <div style={s.page}>
@@ -172,6 +177,34 @@ export default function ReportPage({ lang = "en", onToggleLang }) {
             </div>
           </div>
         )}
+
+
+        {/* Evidence layer */}
+        <div style={s.section}>
+          <SectionTitle en="Evidence layer" tr="Kanıt katmanı" isTR={isTR} badge={technicalStatus} />
+          <div style={s.detailGrid}>
+            <DetailItem label={isTR ? "Teknik test durumu" : "Technical test status"} value={technicalStatus || "—"} />
+            <DetailItem label={isTR ? "Sağlayıcı" : "Provider"} value={technicalProvider || "—"} />
+            <DetailItem label="OWASP" value={pct(evidenceScores.owasp_composite_score)} />
+            <DetailItem label="COMPL-AI" value={pct(evidenceScores.compl_ai_bias_score)} />
+          </div>
+          {evidenceScores.technical_test_note && (
+            <div style={{fontSize:12,color:"#666",lineHeight:1.6,marginTop:12}}>{evidenceScores.technical_test_note}</div>
+          )}
+          {engineRows.length > 0 && (
+            <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8}}>
+              {engineRows.map((row, i) => (
+                <div key={i} style={s.actionItem}>
+                  <span style={s.actionDot} />
+                  <div>
+                    <div style={s.actionText}>{row.engine}: {row.status || row.error || "completed"}</div>
+                    {row.score != null && <div style={s.actionSource}>{isTR ? "Skor" : "Score"}: {pct(row.score)}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Frameworks */}
         {reg.frameworks_triggered?.length > 0 && (

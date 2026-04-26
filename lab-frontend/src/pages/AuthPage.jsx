@@ -25,7 +25,7 @@ export default function AuthPage() {
       } else {
         await createUserWithEmailAndPassword(auth, email, password)
       }
-      navigate("/dashboard")
+      navigate("/")
     } catch (err) {
       setError(friendlyError(err.code))
     } finally {
@@ -38,7 +38,7 @@ export default function AuthPage() {
     setLoading(true)
     try {
       await signInWithPopup(auth, googleProvider)
-      navigate("/dashboard")
+      navigate("/")
     } catch (err) {
       setError(friendlyError(err.code))
     } finally {

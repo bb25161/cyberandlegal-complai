@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../hooks/useAuth"
-import { runAssessment } from "../lib/api"
+import { runAssessment, normalizeProvider } from "../lib/api"
 import { useT } from "../lib/i18n"
 import EUScreening from "../components/EUScreening"
 
@@ -410,7 +410,10 @@ function Step4({ t, form, set, isExternal }) {
 // ── Step 5: AI model test ─────────────────────────────────────────────────────
 
 function Step5({ t, form, set, lang }) {
-  const isCustom = form.model_provider === "prov_custom"
+  const provider = normalizeProvider(form.model_provider)
+  const isCustom = provider === "custom"
+  const usesBackendManagedKey = ["openai", "anthropic"].includes(provider)
+  const needsExternalConfig = ["google", "huggingface", "custom"].includes(provider)
   return <>
     <div style={s.infoBox}>
       <span style={s.infoIcon}>🔒</span>
@@ -422,7 +425,7 @@ function Step5({ t, form, set, lang }) {
     </div>
 
     <F label={t("f_model_provider")}>
-      <Sel value={form.model_provider} onChange={v => { set("model_provider", v); set("model_name", "") }}
+      <Sel value={form.model_provider} onChange={v => { set("model_provider", v); set("model_name", ""); set("api_key", ""); set("custom_endpoint", "") }}
         placeholder={t("f_model_provider_ph")}
         options={["prov_openai","prov_anthropic","prov_google","prov_huggingface","prov_custom"].map(k => [k, t(k)])} />
     </F>
@@ -437,21 +440,29 @@ function Step5({ t, form, set, lang }) {
         <input style={s.input} value={form.custom_endpoint || ""} onChange={e => set("custom_endpoint", e.target.value)} placeholder={t("f_custom_endpoint_ph")} />
       </F>
     )}
-    {form.model_provider && ["google","huggingface","custom"].includes(form.model_provider) && (
+    {form.model_provider && needsExternalConfig && (
       <F label={t("f_api_key")}>
         <div style={{fontSize:12,color:"#888",marginBottom:6}}>
-          {form.model_provider === "custom" ? "Özel endpoint için API anahtarınızı girin." : "Bu sağlayıcı için API anahtarınızı girin."}
+          {provider === "custom" ? "Özel endpoint için API anahtarınızı girin." : "Bu sağlayıcı için API anahtarınızı girin."}
         </div>
         <input style={s.input} type="password" value={form.api_key || ""} onChange={e => set("api_key", e.target.value)} placeholder={t("f_api_key_ph")} autoComplete="off" />
       </F>
     )}
-    {form.model_provider && ["openai","anthropic"].includes(form.model_provider) && (
+    {form.model_provider && usesBackendManagedKey && (
       <F label={t("f_api_key")}>
         <div style={{fontSize:12,color:"#1D9E75",background:"#E1F5EE",border:"1px solid #9FE1CB",borderRadius:8,padding:"8px 12px"}}>
-          ✓ {form.model_provider === "openai" ? "OpenAI" : "Anthropic"} anahtarı sistem tarafından sağlanıyor — ek giriş gerekmez.
+          {provider === "openai" ? "OpenAI" : "Anthropic"} anahtarı sistem tarafından sağlanıyor — ek giriş gerekmez.
         </div>
       </F>
     )}
+    {form.model_provider && needsExternalConfig && (
+      <div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px"}}>
+        {lang === "tr"
+          ? "Not: Bu sağlayıcı için güvenli geçici test çalıştırma servisi henüz bağlı değil. Bilgiler risk profilinde tutulur; teknik test sonucu 'not configured' olarak raporlanır."
+          : "Note: Secure ephemeral test execution is not connected for this provider yet. The metadata is captured, but technical testing will be reported as 'not configured'."}
+      </div>
+    )}
+
     {form.model_provider && (
       <F label={t("f_test_scope")}>
         <div style={s.scopeGrid}>

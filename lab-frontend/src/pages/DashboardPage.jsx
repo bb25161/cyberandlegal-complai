@@ -74,14 +74,14 @@ export default function DashboardPage({ lang = "en", onToggleLang }) {
               ["2", "Olası Zararlar", "Zarar türü, şiddet, savunmasız gruplar"],
               ["3", "Risk Faktörleri", "Olay geçmişi, dağıtım kapsamı"],
               ["4", "Önlemler", "İnsan denetimi, kayıt, önyargı testi"],
-              ["5", "Model Testi", "OWASP, COMPL-AI, LM Eval motorları"],
+              ["5", "Model Testi", "Mevcut sürüm: backend-managed OWASP; diğer motorlar hazırlık aşamasında"],
             ] : [
               ["✦", "EU Legal Screening", "7 official checks · EU AI Act decision tree"],
               ["1", "About your AI", "Organisation, sector, use case"],
               ["2", "Potential harms", "Harm type, severity, vulnerable groups"],
               ["3", "Risk factors", "Incident history, deployment scope"],
               ["4", "Safeguards", "Human oversight, logging, bias testing"],
-              ["5", "AI model test", "OWASP, COMPL-AI, LM Eval engines"],
+              ["5", "AI model test", "Current: backend-managed OWASP; other engines are being prepared"],
             ]).map(([num, title, sub]) => (
               <div key={num} style={s.stepRow}>
                 <div style={{ ...s.stepNum, ...(num === "✦" ? s.stepNumSpecial : {}) }}>{num}</div>
