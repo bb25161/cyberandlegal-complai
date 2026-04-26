@@ -1,4 +1,4 @@
-# Cyber&Legal Lab — Trustworthy AI Governance Platform
+# Cyber&Legal Lab — Trustworthy AI Governance Platform.
 
 Cyber&Legal Lab is an AI governance and risk assessment platform designed to help organizations evaluate, monitor, and improve AI systems in alignment with:
 
