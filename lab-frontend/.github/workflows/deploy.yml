@@ -1,7 +1,38 @@
-git clone https://github.com/bb25161/cyberandlegal-complai.git
-cd cyberandlegal-complai
-mkdir -p .github/workflows
-# Verdiğiniz deploy.yml içeriğini .github/workflows/deploy.yml dosyasına kopyalayın
-git add .github/workflows/deploy.yml
-git commit -m "Add GitHub Actions deploy workflow for Google Cloud"
-git push origin main
+name: Deploy to Cloud Run
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and Push
+        run: |
+          gcloud builds submit \
+            --tag europe-west4-docker.pkg.dev/cyberandlegal-lab/backend/api \
+            --region global
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy cyberandlegal-backend \
+            --image europe-west4-docker.pkg.dev/cyberandlegal-lab/backend/api \
+            --region europe-west4 \
+            --platform managed \
+            --allow-unauthenticated
