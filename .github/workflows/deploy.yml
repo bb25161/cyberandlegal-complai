@@ -27,7 +27,8 @@ jobs:
         run: |
           gcloud builds submit \
             --tag europe-west4-docker.pkg.dev/cyberandlegal-lab/backend/api \
-            --region global
+            --region global \
+            --suppress-logs
 
       - name: Deploy to Cloud Run
         run: |
